@@ -1,0 +1,8 @@
+#!/bin/bash
+
+source "$CPU_PYTHON_V_ENV"
+
+# Passa il primo argomento come nome del file Python e tutti gli altri come argomenti
+python3 $CPU_PYTHON_DIR/elfConverter.py "${@:1}"
+
+deactivate
