@@ -29,7 +29,7 @@ riscv32-unknown-elf-objdump -t build/obj/src/main.o | sort >> scratch/output/nm_
 
 # Creating programs files
 executePython build/bin/main.elf build/bin/testLib.h testLib
-# executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
+executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
 # executePython --format coe build/bin/main.elf build/bin/instruction.coe build/bin/RAM.coe
 
 executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
