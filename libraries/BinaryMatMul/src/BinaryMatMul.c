@@ -5,31 +5,207 @@
 #include <stdint.h>
 
 
-// // Leggi un bit da una matrice binaria bit-packed
-// uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col) {
-//     int bitIndex = row * SIZE + col;
-//     int wordIndex = bitIndex / 32;
-//     int bitPos = bitIndex % 32;
-//     return (mat[wordIndex] >> bitPos) & 1;
-// }
+uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N) {
+    int bitIndex = row * N + col;
+    int wordIndex = bitIndex / 32;
+    int bitPos = bitIndex % 32;
+    int bitShift = 31 - bitPos;
+    uint8_t val = (mat[wordIndex] >> bitShift) & 1;
+    return val;
+}
 
-// // Scrivi un bit in una matrice binaria bit-packed
-// void setBit(BinaryMatrix_t mat, uint32_t row, uint32_t col, uint8_t value) {
-//     int bitIndex = row * SIZE + col;
-//     int wordIndex = bitIndex / 32;
-//     int bitPos = bitIndex % 32;
-//     if (value)
-//         mat[wordIndex] |= (1u << bitPos);
-//     else
-//         mat[wordIndex] &= ~(1u << bitPos);
-// }
 
-// // Trasponi una matrice binaria (da row-major a col-major)
-// void transposeBinaryMatrix(const BinaryMatrix_t input, BinaryMatrix_t output) {
-//     for (int i = 0; i < SIZE; i++) {
-//         for (int j = 0; j < SIZE; j++) {
-//             int bit = getBit(input, i, j);
-//             setBit(output, j, i, bit);  // Trasposizione logica
-//         }
-//     }
-// }
+void setBit(BinaryMatrix_t mat, uint32_t row, uint32_t col, uint8_t value, uint32_t N) {
+    int bitIndex = row * N + col;
+    int wordIndex = bitIndex / 32;
+    int bitPos = bitIndex % 32;
+    int bitShift = 31 - bitPos;
+    if (value){
+        mat[wordIndex] |= (1u << bitShift);
+    }else{
+        mat[wordIndex] &= ~(1u << bitShift);
+    }
+}
+
+void transposeBinaryMatrix(const BinaryMatrix_t input, BinaryMatrix_t output, const uint32_t M, const uint32_t N) {
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            int bit = getBit(input, i, j, N);
+            setBit(output, j, i, bit, N);  // Trasposizione logica
+        }
+    }
+}
+
+void transposeBinaryFragment(BinaryFragment_t input, BinaryFragment_t output) {
+    for (int i = 0; i < BINARY_FRAG_SIZE; i++) {
+        for (int j = 0; j < BINARY_FRAG_SIZE; j++) {
+            int bit = getBit(input, i, j, BINARY_FRAG_SIZE);
+            setBit(output, j, i, bit, BINARY_FRAG_SIZE);  // Trasposizione logica
+        }
+    }
+}
+
+int popcount32(uint32_t x) {
+    x = x - ((x >> 1) & 0x55555555);                    // put count of each 2 bits into those 2 bits
+    x = (x & 0x33333333) + ((x >> 2) & 0x33333333);     // put count of each 4 bits into those 4 bits
+    x = (x + (x >> 4)) & 0x0F0F0F0F;                    // put count of each 8 bits into those 8 bits
+    x = x + (x >> 8);                                   // put count of each 16 bits into their lowest 8 bits
+    x = x + (x >> 16);                                  // put count of each 32 bits into lowest 8 bits
+    return x & 0x0000003F;
+}
+
+uint32_t xnor32(const uint32_t a, const uint32_t b) {
+    return ~(a ^ b);
+}
+
+uint32_t binaryMul(const uint32_t a, const uint32_t b) {
+    uint32_t result;
+    result = xnor32(a, b);
+    result = popcount32(result);
+    return result; 
+}
+
+void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, int i, int print) {
+    for (int row = 0; row < BINARY_FRAG_SIZE; ++row) {
+        for (int col = 0; col < BINARY_FRAG_SIZE; ++col) {
+            acc[row][col] += binaryMul(a[row], b[col]);
+            // if(row == 0 && col == 0 && print){
+            if(row == 0 && col == 0 && print){
+                printf("Iteration #%d: a[%d] = %d, b[%d] = %d, acc[%d][%d] = %d (%d)\n", i,      row, a[row], col, b[col], row, col, acc[row][col], binaryMul(a[row], b[col]));
+                printf("               a[%d] = %08x, b[%d] = %08x, acc[%d][%d] = %08x (%08x)\n", row, a[row], col, b[col], row, col, acc[row][col], binaryMul(a[row], b[col]));
+                printf("               a[%d] = %08x, b[%d] = %08x, a xnor b = %08x\n", row, a[row], col, b[col], xnor32(a[row], b[col]));
+            }
+        }
+    }
+}
+
+void loadFragment(BinaryFragment_t frag, const BinaryMatrix_t mat, uint32_t blockRow, uint32_t blockCol, uint32_t n) {
+    const int cols = n / 32;
+    int blockRowOffset = blockRow * cols * BINARY_FRAG_SIZE;
+    int blockColOffset = blockCol;
+    int wordRow = blockRowOffset + blockColOffset;
+    for (int i = 0; i < BINARY_FRAG_SIZE; ++i) {
+        frag[i] = mat[wordRow];
+        wordRow += cols;
+    }
+}    
+
+void storeFragment(const BinaryFragment_t frag, BinaryMatrix_t mat, uint32_t blockRow, uint32_t blockCol, uint32_t n) {
+    const int cols = n / 32;
+    int blockRowOffset = blockRow * cols * BINARY_FRAG_SIZE;
+    int blockColOffset = blockCol;
+    int wordRow = blockRowOffset + blockColOffset;
+    for (int i = 0; i < BINARY_FRAG_SIZE; ++i) {
+        mat[wordRow] = frag[i];
+        wordRow += cols;
+    }
+}
+
+void storeAcc(const BinaryAcc_t acc, Matrix_t mat, uint32_t blockRow, uint32_t blockCol, uint32_t n) {
+    int blockRowOffset = blockRow * BINARY_FRAG_SIZE * n;
+    int blockColOffset = blockCol * BINARY_FRAG_SIZE;
+    for (int row = 0; row < BINARY_FRAG_SIZE; ++row) {
+        for (int col = 0; col < BINARY_FRAG_SIZE; ++col) {
+            mat[blockRowOffset + row * n + blockColOffset + col] = acc[row][col];
+        }
+    }
+}
+
+void fillAccWithZero(BinaryAcc_t acc) {
+    for(int row = 0; row < BINARY_FRAG_SIZE; ++row){
+        for(int col = 0; col < BINARY_FRAG_SIZE; ++col){
+            acc[row][col] = 0;
+        }
+    }
+}
+
+void binaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, Matrix_t result, const int m, const int n, const int k) {
+    uint32_t blockM = m / BINARY_FRAG_SIZE;
+    uint32_t blockN = n / BINARY_FRAG_SIZE;
+    uint32_t blockK = k / BINARY_FRAG_SIZE;
+    BinaryFragment_t a_frag;
+    BinaryFragment_t b_frag;
+    BinaryFragment_t b_transposed;
+    BinaryAcc_t acc;
+    for(int blockRow = 0; blockRow < blockM; ++blockRow){
+        for (int blockCol = 0; blockCol < blockK; ++blockCol) {
+            fillAccWithZero(acc);  
+            for (int i = 0; i < blockN; ++i) {
+                loadFragment(a_frag, a, blockRow, i, n);
+                loadFragment(b_frag, b, i, blockCol, k);
+                transposeBinaryFragment(b_frag, b_transposed);
+                // printf("Block: [%d][%d] i: %d\n", blockRow, blockCol, i);
+                binaryBlockMatrixMul(a_frag, b_transposed, acc, i, 1);
+                printf("\n");
+            }
+            storeAcc(acc, result, blockRow, blockCol, k);
+        }
+    }
+}
+
+void binarizeMatrix(Matrix_t mat, BinaryMatrix_t bMat, uint32_t signCmp, uint32_t m, uint32_t n){
+    for (int i = 0; i < m; ++i){
+        for (int j = 0; j < n; ++j){
+            setBit(bMat, i, j, mat[i * n + j] > signCmp, n);
+        }
+    }
+}
+
+void printIntBMatrixN(BinaryMatrix_t mat, uint32_t r, uint32_t c, const uint32_t M, const uint32_t N){
+    int cols = N / 32;
+    if (c > cols){
+        c = cols;
+    }
+    if (r > M){
+        r = M;
+    }
+
+    for (int i = 0; i < r; ++i){
+        for (int j = 0; j < c; ++j){
+            printf("%03d ", *(mat + i * (N/32) + j));
+        }
+        printf("\n");
+    }
+}
+
+void printBMatrixN(BinaryMatrix_t mat, uint32_t r, uint32_t c, const uint32_t M, const uint32_t N){
+    if (c > N){
+        c = N;
+    }
+    if (r > M){
+        r = M;
+    }
+    for(int row = 0; row < r; ++row){
+        for(int col = 0; col < c; ++col){
+            uint8_t bit = getBit(mat, row, col, N);
+            printf("%d ", bit);
+        }
+        printf("\n");
+    }
+}
+
+void printIntFragmentN(BinaryFragment_t frag, uint32_t rows){
+    if (rows > BINARY_FRAG_SIZE){
+        rows = BINARY_FRAG_SIZE;
+    }
+    for (int i = 0; i < rows; ++i){
+        printf("%03d\n", frag[i]);
+    }
+    printf("\n");
+}
+
+void printIntMatrixN(Matrix_t mat, uint32_t r, uint32_t c, const uint32_t M, const uint32_t N){
+    if (c > N){
+        c = N;
+    }
+    if (r > M){
+        r = N;
+    }
+
+    for (int i = 0; i < r; ++i){
+        for (int j = 0; j < c; ++j){
+            printf("%03d ", *(mat + i * N + j));
+        }
+        printf("\n");
+    }
+}
