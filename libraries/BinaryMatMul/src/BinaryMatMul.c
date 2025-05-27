@@ -252,10 +252,10 @@ bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool 
     if(inst->creg.reg.BUSY || inst->creg.reg.ERROR){
         return false; // BTPU is busy
     }
-    inst->creg.reg.START = 1; // Start the BTPU
     inst->creg.reg.BATCHED_MUL = isBatched; // Set the batched mode
     inst->creg.reg.OMEM_SEL = outputMemorySelect; // Set the output memory select
     inst->signCmp = signCmp; // Set the sign comparison value
+    inst->creg.reg.START = 1; // Start the BTPU
     return true; // BTPU started successfully
 
 }
