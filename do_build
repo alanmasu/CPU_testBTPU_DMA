@@ -1,3 +1,9 @@
+# Controlla se la variabile d'ambiente CPU_ENV_ACTIVATE è impostata
+if [ -z "$CPU_ENV_ACTIVATE"]; then
+    echo "Activating CPU environment..."
+    source "$PWD/activate"
+fi
+
 if [ "$1" == "-c" ]; then
     echo "Cleaning build..."
     make clean
@@ -36,6 +42,7 @@ executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
 # Creating test programs files
 executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
 executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
+executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/testBTPUProgram.svh" testBTPU
 riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
 
 # executePython --format coe build/bin/main.elf build/bin/instruction.coe build/bin/RAM.coe
