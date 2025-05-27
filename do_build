@@ -9,6 +9,8 @@ make dump > scratch/output/dump.txt
 make symbols > scratch/output/symbols.txt
 make sections > scratch/output/sections.txt
 
+make test
+
 mkdir -p scratch/output
 
 # Dumping symbols using nm and objdump
@@ -30,6 +32,12 @@ riscv32-unknown-elf-objdump -t build/obj/src/main.o | sort >> scratch/output/nm_
 # Creating programs files
 executePython build/bin/main.elf build/bin/testLib.h testLib
 executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
+
+# Creating test programs files
+executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
+executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
+riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
+
 # executePython --format coe build/bin/main.elf build/bin/instruction.coe build/bin/RAM.coe
 
-executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
+# executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram

@@ -18,12 +18,64 @@
 
 #define BINARY_FRAG_SIZE 32
 
+#define  BTPU_CREG_BASE 0x40020030
+#define   W_MEMORY_BASE 0x40080000
+#define IO0_MEMORY_BASE 0x400A0000
+#define IO1_MEMORY_BASE 0x400C0000
+
+#define BTPU_START_BIT_MASK          (1 << 0)
+#define BTPU_BYSY_BIT_MASK           (1 << 1)
+#define BTPU_OMEM_SEL_BIT_MASK       (1 << 2)
+#define BTPU_BRAM_PORT_SEL_BIT_MASK  (1 << 3)
+#define BTPU_ACC_CLEAR_BIT_MASK      (1 << 4)
+#define BTPU_BATCHED_MUL_BIT_MASK    (1 << 5)
+#define BTPU_ERROR_BIT_MASK          (1 << 6)
+
+#define BTPU_OUT_MEMORY_0_CONFIG 1 //< Seleziona IO1_MEMORY come memoria di output e IO0_MEMORY come memoria di input
+#define BTPU_OUT_MEMORY_1_CONFIG 0 //< Seleziona IO0_MEMORY come memoria di output e IO1_MEMORY come memoria di input
+
+
+#define BTPU_MAX_BLOCK_COUNT 1024  ///< Maximum number of blocks for matrix multiplication
+
+typedef struct __attribute__((packed)) BTPUCRegField_t {
+    unsigned START : 1;          ///< Bit 0: Start bit
+    unsigned BUSY : 1;           ///< Bit 1: Busy bit
+    unsigned OMEM_SEL : 1;       ///< Bit 2: Output memory selection (0: IO0_MEMORY, 1: IO1_MEMORY)
+    unsigned BRAM_PORT_SEL : 1;  ///< Bit 3: BRAM port selection (0: IO0_MEMORY, 1: IO1_MEMORY)
+    unsigned ACC_CLEAR : 1;      ///< Bit 4: Accumulator clear bit
+    unsigned BATCHED_MUL : 1;    ///< Bit 5: Batched multiplication bit
+    unsigned ERROR : 1;          ///< Bit 6: Error bit
+    unsigned reserved : 25;      ///< Bit 7-31: Reserved bits
+}BTPUCRegField_t;
+
+typedef union {
+    volatile uint32_t value;        ///< Raw value of the control register
+    volatile BTPUCRegField_t reg;   ///< Bit fields of the control register
+}BTPUCReg_t;
+
+typedef struct __attribute__((packed)) BTPURegFile_t {
+    volatile BTPUCReg_t creg;           ///< Control register
+    volatile uint32_t   wMemStartAddr;  ///< Start address of the W memory
+    volatile uint32_t   iMemStartAddr;  ///< Start address of the I memory
+    volatile uint32_t   oMemStartAddr;  ///< Start address of the O memory
+    volatile uint32_t   mSize;          ///< Size of the matrix (in blocks)
+    volatile uint32_t   nSize;          ///< Number of columns of the matrix (in blocks)
+    volatile uint32_t   kSize;          ///< Number of rows of the matrix (in blocks)
+    volatile uint32_t   statusReg;      ///< Status register
+    volatile uint32_t   signCmp;        ///< Sign comparison value for binarization
+} BTPURegFile_t;
+
+extern BTPURegFile_t* BTPU0RegFile;
 
 typedef uint32_t  BinaryFragment_t[BINARY_FRAG_SIZE];
 typedef uint32_t* BinaryMatrix_t;
 typedef uint32_t* Matrix_t;
 
 typedef uint32_t  BinaryAcc_t[BINARY_FRAG_SIZE][BINARY_FRAG_SIZE];
+
+extern BinaryFragment_t*   BTPU0_W_MEMORY;
+extern BinaryFragment_t* BTPU0_IO0_MEMORY;
+extern BinaryFragment_t* BTPU0_IO1_MEMORY;
 
 /// Legge un bit da una matrice binaria bit-packed
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N);
@@ -49,14 +101,7 @@ void setBit(BinaryMatrix_t mat, uint32_t row, uint32_t col, uint8_t value, uint3
 void transposeBinaryMatrix(const BinaryMatrix_t input, BinaryMatrix_t output, const uint32_t M, const uint32_t N);
 
 /// Traspone un frammentp binario (da row-major a col-major)
-void transposeBinaryFragment(BinaryFragment_t input, BinaryFragment_t output) {
-    for (int i = 0; i < BINARY_FRAG_SIZE; i++) {
-        for (int j = 0; j < BINARY_FRAG_SIZE; j++) {
-            int bit = getBit(input, i, j, BINARY_FRAG_SIZE);
-            setBit(output, j, i, bit, BINARY_FRAG_SIZE);  // Trasposizione logica
-        }
-    }
-}
+void transposeBinaryFragment(BinaryFragment_t input, BinaryFragment_t output);
 
 /// Calcola il numero di bit settati in una parola binaria
 int popcount32(uint32_t x);
@@ -197,4 +242,66 @@ void printIntFragmentN(BinaryFragment_t frag, uint32_t rows);
 */
 void printIntMatrixN(Matrix_t mat, uint32_t r, uint32_t c, const uint32_t M, const uint32_t N);
 
-#endif
+
+/*!
+    @brief      Carica una matrice binaria in frammenti binari contigui
+    @details    Prende in ingresso una matrice binaria di dimensioni M x N (in bit) e la carica 
+                 in frammenti binari contigui di dimensioni BINARY_FRAG_SIZE x BINARY_FRAG_SIZE.
+                 Utile per caricare una matrice binaria in BTPU.
+    @param[in]  mat La matrice binaria da caricare
+    @param[in]  dest L'indirizzo di destinazione in cui caricare la matrice
+    @param      M Numero di righe della matrice (in bit)
+    @param      N Numero di colonne della matrice (in bit)
+
+    @note       dest deve essere allocato come un array di frammenti binari di dimensioni M x (N/32).
+*/
+void loadBinaryMatrixToFragments(const BinaryMatrix_t mat, BinaryFragment_t dest[], const uint32_t M, const uint32_t N);
+
+/*!
+    @brief      Memorizza frammenti binari in una matrice binaria
+    @details    Prende in ingresso un array di frammenti binari e li memorizza in una matrice binaria di dimensioni M x N (in bit).
+                Utile per memorizzare i risultati della moltiplicazione in BTPU.
+    @param[in]  src L'array di frammenti binari da memorizzare
+    @param[out] mat La matrice binaria in cui memorizzare i dati
+    @param      M Numero di righe della matrice (in bit)
+    @param      N Numero di colonne della matrice (in bit)
+
+    @note       mat deve essere allocata come un array di uint32_t di dimensioni M x (N/32).    
+*/
+void storeFramentsToBinaryMatrix(const BinaryFragment_t src[], BinaryMatrix_t mat, const uint32_t M, const uint32_t N);
+
+/*!
+    @brief  Inizializza i registri della BTPU per la moltiplicazione di matrici binarie settando le dimensioni
+    @details Impostando i registri di controllo delle dimensioni delle matrici.
+    @param inst Puntatore alla struttura dei registri della BTPU
+    @param m Numero di righe della matrice A (in blocchi)
+    @param n Numero di colonne della matrice A e righe della matrice B (in blocchi)
+    @param k Numero di colonne della matrice B (in blocchi)
+*/
+void btpuSetBlocks(BTPURegFile_t* inst, const int m, const int n, const int k);
+
+/*!
+    @brief  Inizializza i registri della BTPU per la moltiplicazione di matrici binarie settando gli indirizzi dei registri
+    @details Imposta gli indirizzi di memoria per le matrici W, I e O nella BTPU.
+    @param inst Puntatore alla struttura dei registri della BTPU
+    @param wMemStartAddr Indirizzo di partenza della memoria W (in blocchi)
+    @param iMemStartAddr Indirizzo di partenza della memoria I (in blocchi)
+    @param oMemStartAddr Indirizzo di partenza della memoria O (in blocchi)
+*/
+void btpuSetAddrs(BTPURegFile_t* inst, const uint32_t wMemStartAddr, const uint32_t iMemStartAddr, const uint32_t oMemStartAddr);
+
+/*!
+    @brief  Avvia la moltiplicazione di matrici binarie nel BTPU
+    @details Avvia la moltiplicazione di matrici binarie nel BTPU, impostando i registri di controllo e avviando l'operazione.
+    @return true se l'operazione è stata avviata correttamente, false altrimenti
+*/
+bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool isBatched, uint8_t outputMemorySelect);
+
+/*!
+    @brief  Attende il completamento della moltiplicazione di matrici binarie nel BTPU
+    @details Attende il completamento della moltiplicazione di matrici binarie nel BTPU, controllando lo stato del registro di controllo.
+    @return Quando la moltiplicazione è completata, la funzione termina restituendo true se non ci sono stati errori, false altrimenti.
+*/
+bool btpuWaitBinaryMatrixMul(BTPURegFile_t* inst);
+
+#endif // __BINARY_MATMUL_H__

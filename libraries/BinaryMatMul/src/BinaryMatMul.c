@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+BTPURegFile_t* BTPU0RegFile = (BTPURegFile_t*)BTPU_CREG_BASE;
+BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
 
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N) {
     int bitIndex = row * N + col;
@@ -207,5 +211,58 @@ void printIntMatrixN(Matrix_t mat, uint32_t r, uint32_t c, const uint32_t M, con
             printf("%03d ", *(mat + i * N + j));
         }
         printf("\n");
+    }
+}
+
+void loadBinaryMatrixToFragments(const BinaryMatrix_t mat, BinaryFragment_t dest[], const uint32_t M, const uint32_t N){
+    int blockRows  = M / BINARY_FRAG_SIZE;
+    int blockCols  = N / BINARY_FRAG_SIZE;
+    int fragmentN = 0;
+    for (int blockRow = 0; blockRow < blockRows; ++blockRow) {
+        for (int blockCol = 0; blockCol < blockCols; ++blockCol) {
+            loadFragment(dest[fragmentN++], mat, blockRow, blockCol, N);
+        }
+    }
+}
+
+void storeFramentsToBinaryMatrix(const BinaryFragment_t src[], BinaryMatrix_t mat, const uint32_t M, const uint32_t N){
+    int blockRows  = M / BINARY_FRAG_SIZE;
+    int blockCols  = N / BINARY_FRAG_SIZE;
+    int fragmentN = 0;
+    for (int blockRow = 0; blockRow < blockRows; ++blockRow) {
+        for (int blockCol = 0; blockCol < blockCols; ++blockCol) {
+            storeFragment(src[fragmentN++], mat, blockRow, blockCol, N);
+        }
+    }
+}
+
+void btpuSetBlocks(BTPURegFile_t* inst, const int m, const int n, const int k){
+    inst->mSize = m / BINARY_FRAG_SIZE;
+    inst->nSize = n / BINARY_FRAG_SIZE;
+    inst->kSize = k / BINARY_FRAG_SIZE;
+}
+
+void btpuSetAddrs(BTPURegFile_t* inst, const uint32_t wMemStartAddr, const uint32_t iMemStartAddr, const uint32_t oMemStartAddr){
+    inst->wMemStartAddr = wMemStartAddr;
+    inst->iMemStartAddr = iMemStartAddr;
+    inst->oMemStartAddr = oMemStartAddr;
+}
+
+bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool isBatched, uint8_t outputMemorySelect){
+    if(inst->creg.reg.BUSY || inst->creg.reg.ERROR){
+        return false; // BTPU is busy
+    }
+    inst->creg.reg.START = 1; // Start the BTPU
+    inst->creg.reg.BATCHED_MUL = isBatched; // Set the batched mode
+    inst->creg.reg.OMEM_SEL = outputMemorySelect; // Set the output memory select
+    inst->signCmp = signCmp; // Set the sign comparison value
+    return true; // BTPU started successfully
+
+}
+
+__attribute__((optimize("O0")))
+bool btpuWaitBinaryMatrixMul(BTPURegFile_t* inst){
+    while(inst->creg.reg.BUSY){
+        // Wait for the BTPU to finish
     }
 }
