@@ -297,7 +297,7 @@ void btpuSetAddrs(BTPURegFile_t* inst, const uint32_t wMemStartAddr, const uint3
     @details Avvia la moltiplicazione di matrici binarie nel BTPU, impostando i registri di controllo e avviando l'operazione.
     @return true se l'operazione è stata avviata correttamente, false altrimenti
 */
-bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool isBatched, uint8_t outputMemorySelect);
+bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool isBatched, bool clearAcc, uint8_t outputMemorySelect);
 
 /*!
     @brief  Attende il completamento della moltiplicazione di matrici binarie nel BTPU

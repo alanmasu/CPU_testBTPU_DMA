@@ -21,13 +21,13 @@ int main(int argc, char const *argv[]){
 
     //Configure first Binary Matrix Mul 
     btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
-    btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, BTPU_OUT_MEMORY_0_CONFIG);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_OUT_MEMORY_0_CONFIG);
 
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
     //Configure second Binary Matrix Mul
     btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
-    btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, BTPU_OUT_MEMORY_1_CONFIG);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_OUT_MEMORY_1_CONFIG);
 
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
