@@ -260,7 +260,7 @@ bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool 
 
 }
 
-__attribute__((optimize("O0")))
+__attribute__((optimize("O3")))
 bool btpuWaitBinaryMatrixMul(BTPURegFile_t* inst){
     while(inst->creg.reg.BUSY){
         // Wait for the BTPU to finish
