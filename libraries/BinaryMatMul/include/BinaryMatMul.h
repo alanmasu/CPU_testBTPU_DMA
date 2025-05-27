@@ -34,6 +34,8 @@
 #define BTPU_OUT_MEMORY_0_CONFIG 1 //< Seleziona IO1_MEMORY come memoria di output e IO0_MEMORY come memoria di input
 #define BTPU_OUT_MEMORY_1_CONFIG 0 //< Seleziona IO0_MEMORY come memoria di output e IO1_MEMORY come memoria di input
 
+#define BTPU_BRAM_PORT_SEL_INT   0 ///< Seleziona la porta del RISC-V 
+#define BTPU_BRAM_PORT_SEL_EXT   1 ///< Seleziona IO0_MEMORY come porta del RISC-V
 
 #define BTPU_MAX_BLOCK_COUNT 1024  ///< Maximum number of blocks for matrix multiplication
 
@@ -73,9 +75,9 @@ typedef uint32_t* Matrix_t;
 
 typedef uint32_t  BinaryAcc_t[BINARY_FRAG_SIZE][BINARY_FRAG_SIZE];
 
-extern BinaryFragment_t*   BTPU0_W_MEMORY;
-extern BinaryFragment_t* BTPU0_IO0_MEMORY;
-extern BinaryFragment_t* BTPU0_IO1_MEMORY;
+extern volatile BinaryFragment_t*   BTPU0_W_MEMORY;
+extern volatile BinaryFragment_t* BTPU0_IO0_MEMORY;
+extern volatile BinaryFragment_t* BTPU0_IO1_MEMORY;
 
 /// Legge un bit da una matrice binaria bit-packed
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N);

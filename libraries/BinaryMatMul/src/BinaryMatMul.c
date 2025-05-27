@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 BTPURegFile_t* BTPU0RegFile = (BTPURegFile_t*)BTPU_CREG_BASE;
-BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
-BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
-BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
+volatile BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
+volatile BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
+volatile BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
 
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N) {
     int bitIndex = row * N + col;
