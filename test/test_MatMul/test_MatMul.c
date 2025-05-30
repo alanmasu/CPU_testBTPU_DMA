@@ -16,6 +16,7 @@
 
 int main(int argc, char const *argv[]){
     printf("Starting Binary Matrix Multiplication Test... (Test compiled at: %s %s)\n", __DATE__, __TIME__);
+    int test_n = 0;
     const int B_M = 2;
     const int B_N = 3;
     const int B_K = 4;
@@ -59,6 +60,8 @@ int main(int argc, char const *argv[]){
     // memset(O, 0, M * (K / 32) * sizeof(uint32_t));
     // memset(result, 0, M * K * sizeof(uint32_t));
 
+
+    test_n = 1;
     binaryMatrixMul(A, W, (BinaryMatrix_t)result, M, N, K);
     binarizeMatrix(result, O, signCmp, M, K);
 
@@ -78,6 +81,7 @@ int main(int argc, char const *argv[]){
         PRINTF_DBG("Test #1: FAILED\n");
     }
 
+    test_n = 2;
     fastBinaryMatrixMul(A, W, O, signCmp, M, N, K);
     success = true;
     err = 0;
@@ -94,6 +98,53 @@ int main(int argc, char const *argv[]){
         PRINTF_DBG("   %d more errors found\n", err);
         PRINTF_DBG("Test #2: FAILED\n");
     }
+
+    test_n = 3;
+    PRINTF_DBG("\nLoading BTPU fragments...\n");
+    for(int i = 0; i < BINARY_FRAG_SIZE; ++i){
+        BTPU0_W_MEMORY[0][i] = i;
+        BTPU0_IO0_MEMORY[0][i] = i + 1;
+        BTPU0_IO1_MEMORY[0][i] = i + 2;
+    }
+    PRINTF_DBG("Configuring BTPU...\n");
+    // btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
+    // btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_0_CONFIG);
+
+    
+
+    // loadBinaryMatrixToFragments(A, BTPU0_IO0_MEMORY, M, N);
+    // loadBinaryMatrixToFragments(W, BTPU0_W_MEMORY, N, K);
+    // btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
+    // btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
+    // PRINTF_DBG("\nStarting first multiplication...\n");
+    // btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_1_CONFIG);
+    // PRINTF_DBG("Waiting for BTPU to finish...\n");
+    // btpuWaitBinaryMatrixMul(BTPU0RegFile);
+    // PRINTF_DBG("Storing results from BTPU...\n");
+    // storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O, M, K);
+
+    // success = true;
+    // err = 0;
+    // for(int i = 0; i < M * (K / 32); ++i){
+    //     if(O[i] != result_Matrix[i]){
+    //         if(success) PRINTF_DBG("Test #3-%d: FAILED -> O[%d] was 0x%08x, Expected = 0x%08x\n", i, i, O[i], result_Matrix[i]);
+    //         success = false;
+    //         ++err;
+    //     }
+    // }
+    // if(success){
+    //     PRINTF_DBG("Test #3: OK\n");
+    // }else{
+    //     PRINTF_DBG("   %d more errors found\n", err);
+    //     PRINTF_DBG("Test #3: FAILED\n");
+    // }
+
+    BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT;
+
+    free(A);
+    free(W);
+    free(O);
+
 
     while(1){
 

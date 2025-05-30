@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-const uint32_t result_Matrix[] __attribute__((section(".text.rodata"))) = {
+const uint32_t __attribute__((section(".text.rodata"))) result_Matrix[]  = {
     0xfffffffb, 0xfffffffa, 0xfffffff9, 0xfffffff8, 
     0xfffffff7, 0xfffffff6, 0xfffffff5, 0xfffffff4, 
     0xfffffff3, 0xfffffff2, 0xfffffff1, 0xfffffff0, 

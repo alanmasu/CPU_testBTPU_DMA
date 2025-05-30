@@ -31,8 +31,8 @@
 #define BTPU_BATCHED_MUL_BIT_MASK    (1 << 5)
 #define BTPU_ERROR_BIT_MASK          (1 << 6)
 
-#define BTPU_OUT_MEMORY_0_CONFIG 1 //< Seleziona IO1_MEMORY come memoria di output e IO0_MEMORY come memoria di input
-#define BTPU_OUT_MEMORY_1_CONFIG 0 //< Seleziona IO0_MEMORY come memoria di output e IO1_MEMORY come memoria di input
+#define BTPU_USE_MEMORY_0_CONFIG 1 //< Seleziona IO1_MEMORY come memoria di output e IO0_MEMORY come memoria di input
+#define BTPU_USE_MEMORY_1_CONFIG 0 //< Seleziona IO0_MEMORY come memoria di output e IO1_MEMORY come memoria di input
 
 #define BTPU_BRAM_PORT_SEL_INT   0 ///< Seleziona la porta del RISC-V 
 #define BTPU_BRAM_PORT_SEL_EXT   1 ///< Seleziona IO0_MEMORY come porta del RISC-V
@@ -43,7 +43,7 @@ typedef struct __attribute__((packed)) BTPUCRegField_t {
     unsigned START : 1;          ///< Bit 0: Start bit
     unsigned BUSY : 1;           ///< Bit 1: Busy bit
     unsigned OMEM_SEL : 1;       ///< Bit 2: Output memory selection (0: IO0_MEMORY, 1: IO1_MEMORY)
-    unsigned BRAM_PORT_SEL : 1;  ///< Bit 3: BRAM port selection (0: IO0_MEMORY, 1: IO1_MEMORY)
+    unsigned BRAM_PORT_SEL : 1;  ///< Bit 3: BRAM port selection (0: INTERNAL, 1: EXTERNAL)
     unsigned ACC_CLEAR : 1;      ///< Bit 4: Accumulator clear bit
     unsigned BATCHED_MUL : 1;    ///< Bit 5: Batched multiplication bit
     unsigned ERROR : 1;          ///< Bit 6: Error bit

@@ -61,7 +61,7 @@ int main(int argc, char const *argv[]){
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K); 
 
     PRINTF_DBG("\nStarting first multiplication...\n");
-    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_OUT_MEMORY_0_CONFIG);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
     storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY, O, M, K);
 
@@ -90,7 +90,7 @@ int main(int argc, char const *argv[]){
     PRINTF_DBG("\nStarting second multiplication...\n");
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
-    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_OUT_MEMORY_0_CONFIG);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
     storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O, M, K);
     fastBinaryMatrixMul(A, W, OSerial, M, N, K, signCmp);
