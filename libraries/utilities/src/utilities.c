@@ -14,8 +14,8 @@ void _init(){
         "la gp, __global_pointer$\n\t"
         "la sp, __stack_start\n\t"
         "li t0, 0x40010000\n\t"
-        "lw a0, 4(t0)\n\t"
-        "lw a1, 8(t0)\n\t"
+        "lw a0, 0(t0)\n\t"
+        "lw a1, 4(t0)\n\t"
         "call main\n\t"
     );
 }

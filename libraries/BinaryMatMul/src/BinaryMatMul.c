@@ -162,9 +162,7 @@ void binaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, Matrix_t re
                 loadFragment(a_frag, a, blockRow, i, n);
                 loadFragment(b_frag, b, i, blockCol, k);
                 transposeBinaryFragment(b_frag, b_transposed);
-                // printf("Block: [%d][%d] i: %d\n", blockRow, blockCol, i);
                 binaryBlockMatrixMul(a_frag, b_transposed, acc);
-                printf("\n");
             }
             storeAcc(acc, result, blockRow, blockCol, k);
         }
