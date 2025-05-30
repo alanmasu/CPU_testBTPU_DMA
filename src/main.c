@@ -17,10 +17,6 @@
 
 
 int main(int argc, char const *argv[]){
-    PRINTF_DBG("Hello World from test BTPU!\n");
-
-    PRINTF_DBG("Starting allocation of matrices...\n");
-
     const int B_M = 2;
     const int B_N = 3;
     const int B_K = 4;
@@ -30,113 +26,100 @@ int main(int argc, char const *argv[]){
     const int N = B_N * BINARY_FRAG_SIZE;
     const int K = B_K * BINARY_FRAG_SIZE;
  
-    BinaryMatrix_t A1 = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
-    BinaryMatrix_t A2 = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
+    BinaryMatrix_t A = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
+    // BinaryMatrix_t A2 = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
 
     BinaryMatrix_t W = (BinaryMatrix_t)malloc(N * (K / 32) * sizeof(uint32_t)); // 1.536 kB
 
-    BinaryMatrix_t O1 = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
-    BinaryMatrix_t O2 = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    BinaryMatrix_t O = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    // BinaryMatrix_t O2 = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
 
-    BinaryMatrix_t O1Serial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
-    BinaryMatrix_t O2Serial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    BinaryMatrix_t OSerial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    // BinaryMatrix_t O2Serial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
 
-    if(!A1 || !A2 || !W || !O1 || !O2){
+    if(!A || !W || !O || !OSerial){
         PRINTF_DBG("Memory allocation failed!\n");
         while(1);
     }
 
     PRINTF_DBG("Memory allocation successful!\n");
 
-    PRINTF_DBG("Initializing matrices...\n");
+    PRINTF_DBG("\nInitializing matrices...\n");
     for(int i = 0; i < M * (N / 32); ++i){
-        A1[i] = i + 1;
-        A2[i] = i + 2;
+        A[i] = i + 1;
     }
-
     for(int i = 0; i < N * (K / 32); ++i){
         W[i] = i;
     }
+    memset(O, 0, M * (K / 32) * sizeof(uint32_t));
 
-    memset(O1, 0, M * (K / 32) * sizeof(uint32_t));
-    memset(O2, 0, M * (K / 32) * sizeof(uint32_t));
-    PRINTF_DBG("Matrices initialized successfully!\n");
-
-    PRINTF_DBG("Loading matices to BTPU fragments...\n");
-    loadBinaryMatrixToFragments(A1, BTPU0_IO0_MEMORY, M, N);
-    loadBinaryMatrixToFragments(A2, BTPU0_IO1_MEMORY, M, N);
+    PRINTF_DBG("\nLoading matices to BTPU fragments...\n");
+    loadBinaryMatrixToFragments(A, BTPU0_IO0_MEMORY, M, N);
     loadBinaryMatrixToFragments(W, BTPU0_W_MEMORY, N, K);
-    PRINTF_DBG("Matrices loaded to BTPU fragments successfully!\n");
 
-    PRINTF_DBG("Starting first multiplication...\n");
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K); 
+
+    PRINTF_DBG("\nStarting first multiplication...\n");
     btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_OUT_MEMORY_0_CONFIG);
-
-    PRINTF_DBG("Waiting for first multiplication to complete...\n");
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    PRINTF_DBG("First multiplication completed!\n");
+    storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY, O, M, K);
 
-    PRINTF_DBG("Storing results from BTPU fragments to O1 matrix...\n");
-    storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY, O1, M, K);
-    PRINTF_DBG("Results stored successfully!\n");
+    fastBinaryMatrixMul(A, W, OSerial, M, N, K, signCmp);
 
-    PRINTF_DBG("Starting second multiplication...\n");
-    btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
-    btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
-    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_OUT_MEMORY_0_CONFIG);
-
-    PRINTF_DBG("Waiting for second multiplication to complete...\n");
-    btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    PRINTF_DBG("Second multiplication completed!\n");
-
-    PRINTF_DBG("Storing results from BTPU fragments to O2 matrix...\n");
-    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O2, M, K);
-    PRINTF_DBG("Results stored successfully!\n");
-
-    PRINTF_DBG("Performing first serial multiplication for verification...\n");
-    fastBinaryMatrixMul(A1, W, O1Serial, M, N, K, signCmp);
-    PRINTF_DBG("First serial multiplication completed!\n");
-    PRINTF_DBG("Performing second serial multiplication for verification...\n");
-    fastBinaryMatrixMul(A2, W, O2Serial, M, N, K, signCmp);
-    PRINTF_DBG("Second serial multiplication completed!\n");
-
-    PRINTF_DBG("Comparing results...\n");
     bool success = true;
+    int err = 0;
     for(int i = 0; i < M * (K / 32); ++i){
-        if(O1[i] != O1Serial[i]){
-            PRINTF_DBG("Mismatch in O1 at index %d: BTPU = %u, Serial = %u\n", i, O1[i], O1Serial[i]);
+        if(O[i] != OSerial[i]){
+            if(success) PRINTF_DBG("Mismatch in O at index %d: BTPU = 0x%08x, Serial = 0x%08x\n", i, O[i], OSerial[i]);
             success = false;
+            ++err;
         }
     }
     if(success){
         PRINTF_DBG("Test #1: OK\n");
     }else{
+        PRINTF_DBG("   %d more errors found\n", err);
         PRINTF_DBG("Test #1: FAILED\n");
     }
 
+    for(int i = 0; i < M * (N / 32); ++i){
+        A[i] = i + 1;
+    }
+
+    PRINTF_DBG("\nStarting second multiplication...\n");
+    btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_OUT_MEMORY_0_CONFIG);
+    btpuWaitBinaryMatrixMul(BTPU0RegFile);
+    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O, M, K);
+    fastBinaryMatrixMul(A, W, OSerial, M, N, K, signCmp);
+
+    err = 0;
     success = true;
     for(int i = 0; i < M * (K / 32); ++i){
-        if(O2[i] != O2Serial[i]){
-            PRINTF_DBG("Mismatch in O2 at index %d: BTPU = %u, Serial = %u\n", i, O2[i], O2Serial[i]);
+        if(O[i] != OSerial[i]){
+            if(success) PRINTF_DBG("Mismatch in O at index %d: BTPU = 0x%08x, Serial = 0x%08x\n", i, O[i], OSerial[i]);
             success = false;
+            ++err;
         }
     }
     if(success){
         PRINTF_DBG("Test #2: OK\n");
     }else{
+        PRINTF_DBG("   %d more errors found\n", err);
         PRINTF_DBG("Test #2: FAILED\n");
     }
 
     PRINTF_DBG("All tests completed!\n");
     PRINTF_DBG("Freeing allocated memory...\n");
-    free(A1);
-    free(A2);
+    free(A);
+    // free(A2);
     free(W);
-    free(O1);
-    free(O2);
-    free(O1Serial);
-    free(O2Serial);
+    free(O);
+    // free(O2);
+    free(OSerial);
+    // free(O2Serial);
     
     PRINTF_DBG("Setting BRAM Port to EXTERNAL...\n");
     BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT; // Set BRAM port to external
