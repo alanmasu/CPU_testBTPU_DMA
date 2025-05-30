@@ -75,9 +75,9 @@ typedef uint32_t* Matrix_t;
 
 typedef uint32_t  BinaryAcc_t[BINARY_FRAG_SIZE][BINARY_FRAG_SIZE];
 
-extern volatile BinaryFragment_t*   BTPU0_W_MEMORY;
-extern volatile BinaryFragment_t* BTPU0_IO0_MEMORY;
-extern volatile BinaryFragment_t* BTPU0_IO1_MEMORY;
+extern BinaryFragment_t*   BTPU0_W_MEMORY;
+extern BinaryFragment_t* BTPU0_IO0_MEMORY;
+extern BinaryFragment_t* BTPU0_IO1_MEMORY;
 
 /// Legge un bit da una matrice binaria bit-packed
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N);
@@ -130,7 +130,7 @@ uint32_t binaryMul(const uint32_t a, const uint32_t b);
     @param[in]  b Il frammento B (trasposto)
     @param[out] acc L'accumulatore in cui memorizzare il risultato
 */
-void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, int i, int print);
+void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc);
 
 /*!
     @brief  Carica un blocco di matrice binaria in un frammento
@@ -179,7 +179,7 @@ void fillAccWithZero(BinaryAcc_t acc);
 
 /*!
     @brief      Moltiplica due matrici binarie
-    @details    Prende in ingresso due matrici binarie di dimensioni m x n e n x k
+    @details    Prende in ingresso due matrici binarie di dimensioni M x N e N x K
                 e restituisce il risultato della moltiplicazione in una matrice di dimensioni m x k.
                 La moltiplicazione viene eseguita in blocchi di dimensione BINARY_FRAG_SIZE x BINARY_FRAG_SIZE.
     @param[in]  a La matrice binaria A
@@ -190,6 +190,21 @@ void fillAccWithZero(BinaryAcc_t acc);
     @param      k Numero di colonne della matrice B
 */
 void binaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, Matrix_t result, const int m, const int n, const int k);
+
+/*!
+    @brief  Moltiplica due matrici binarie applicando il segno
+    @details Prende in ingresso due matrici binarie di dimensioni M x N e N x K
+             e restituisce il risultato della moltiplicazione in una matrice di dimensioni m x k,
+             calcolando il segno confrontando il risultato con un valore di confronto specificato.
+    @param[in]  a La matrice binaria A
+    @param[in]  b La matrice binaria B
+    @param[out] c La matrice risultante
+    @param      signCmp Il valore di confronto per il segno
+    @param      m Numero di righe della matrice A (in bit)
+    @param      n Numero di colonne della matrice A e righe della matrice B (in bit)
+    @param      k Numero di colonne della matrice B (in bit)
+*/
+void fastBinaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, BinaryMatrix_t c, uint32_t signCmp, const int m, const int n, const int k);
 
 /*!
     @brief  Converte una matrice in una matrice binaria

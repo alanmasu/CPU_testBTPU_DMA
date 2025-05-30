@@ -39,6 +39,9 @@ riscv32-unknown-elf-objdump -t build/obj/src/main.o | sort >> scratch/output/nm_
 executePython build/bin/main.elf build/bin/testLib.h testLib
 executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
 
+# executePython build/bin/main.elf build/bin/testBTPUProgram.h testBTPUProgram
+# executePython --format sv build/bin/main.elf build/bin/testBTPUProgram.svh testBTPUProgram
+
 # Creating test programs files
 executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
 executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
@@ -46,5 +49,6 @@ executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents
 riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
 
 # executePython --format coe build/bin/main.elf build/bin/instruction.coe build/bin/RAM.coe
-
-# executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
+executePython build/bin/main.elf ~/workspace/Test_GPIO/src/programs/testBTPUProgram.h BTPUProgram
+executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testBTPUProgram.h BTPUProgram
+executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram

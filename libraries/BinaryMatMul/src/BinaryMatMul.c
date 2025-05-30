@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 BTPURegFile_t* BTPU0RegFile = (BTPURegFile_t*)BTPU_CREG_BASE;
-volatile BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
-volatile BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
-volatile BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
+BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
 
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N) {
     int bitIndex = row * N + col;
@@ -69,19 +69,43 @@ uint32_t binaryMul(const uint32_t a, const uint32_t b) {
     return result; 
 }
 
-void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, int i, int print) {
+void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc) {
     for (int row = 0; row < BINARY_FRAG_SIZE; ++row) {
         for (int col = 0; col < BINARY_FRAG_SIZE; ++col) {
             acc[row][col] += binaryMul(a[row], b[col]);
-            // if(row == 0 && col == 0 && print){
-            if(row == 0 && col == 0 && print){
-                printf("Iteration #%d: a[%d] = %d, b[%d] = %d, acc[%d][%d] = %d (%d)\n", i,      row, a[row], col, b[col], row, col, acc[row][col], binaryMul(a[row], b[col]));
-                printf("               a[%d] = %08x, b[%d] = %08x, acc[%d][%d] = %08x (%08x)\n", row, a[row], col, b[col], row, col, acc[row][col], binaryMul(a[row], b[col]));
-                printf("               a[%d] = %08x, b[%d] = %08x, a xnor b = %08x\n", row, a[row], col, b[col], xnor32(a[row], b[col]));
+        }
+    }
+}
+
+/*!
+    @brief  Moltiplica due frammenti di matrice binaria applicando il segno
+    @details Prende in ingresso due frammenti di matrice binaria di dimensioni BINARY_FRAG_SIZE x BINARY_FRAG_SIZE
+             e restituisce il risultato della moltiplicazione in un accumulatore, ne calola il segno confrontando il
+             risultato con un valore di confronto specificato.
+    @param[in]  a Il frammento A
+    @param[in]  b Il frammento B (trasposto)
+    @param[out] acc L'accumulatore in cui memorizzare il risultato
+    @param[out] c Il frammento in cui memorizzare il risultato finale
+    @param      signCmp Il valore di confronto per il segno
+    @param      store Se true, binarizza il risultato e lo memorizza in c
+    
+*/
+static void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store) {
+    for (int row = 0; row < BINARY_FRAG_SIZE; ++row) {
+        for (int col = 0; col < BINARY_FRAG_SIZE; ++col) {
+            acc[row][col] += binaryMul(a[row], b[col]);
+            if (store){
+                // Binarizza il risultato e lo memorizza in c
+                if (acc[row][col] > signCmp) {
+                    setBit(c, row, col, 1, BINARY_FRAG_SIZE);
+                } else {
+                    setBit(c, row, col, 0, BINARY_FRAG_SIZE);
+                }
             }
         }
     }
 }
+
 
 void loadFragment(BinaryFragment_t frag, const BinaryMatrix_t mat, uint32_t blockRow, uint32_t blockCol, uint32_t n) {
     const int cols = n / 32;
@@ -139,10 +163,33 @@ void binaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, Matrix_t re
                 loadFragment(b_frag, b, i, blockCol, k);
                 transposeBinaryFragment(b_frag, b_transposed);
                 // printf("Block: [%d][%d] i: %d\n", blockRow, blockCol, i);
-                binaryBlockMatrixMul(a_frag, b_transposed, acc, i, 1);
+                binaryBlockMatrixMul(a_frag, b_transposed, acc);
                 printf("\n");
             }
             storeAcc(acc, result, blockRow, blockCol, k);
+        }
+    }
+}
+
+void fastBinaryMatrixMul(const BinaryMatrix_t a, const BinaryMatrix_t b, BinaryMatrix_t c, uint32_t signCmp, const int m, const int n, const int k){
+    uint32_t blockM = m / BINARY_FRAG_SIZE;
+    uint32_t blockN = n / BINARY_FRAG_SIZE;
+    uint32_t blockK = k / BINARY_FRAG_SIZE;
+    BinaryFragment_t a_frag;
+    BinaryFragment_t b_frag;
+    BinaryFragment_t b_transposed;
+    BinaryFragment_t c_frag;
+    BinaryAcc_t acc;
+    for(int blockRow = 0; blockRow < blockM; ++blockRow){
+        for (int blockCol = 0; blockCol < blockK; ++blockCol) {
+            fillAccWithZero(acc);  
+            for (int i = 0; i < blockN; ++i) {
+                loadFragment(a_frag, a, blockRow, i, n);
+                loadFragment(b_frag, b, i, blockCol, k);
+                transposeBinaryFragment(b_frag, b_transposed);
+                fastBinaryBlockMatrixMul(a_frag, b_transposed, acc, c_frag, signCmp, i == blockN - 1);
+            }
+            storeFragment(c_frag, c, blockRow, blockCol, k);
         }
     }
 }
