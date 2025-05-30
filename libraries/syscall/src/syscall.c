@@ -7,6 +7,10 @@
 extern uint8_t __heap_start;
 static uint8_t *heap_ptr = &__heap_start;
 
+static uint8_t* ddr_heap_ptr;
+static uint8_t* __ddr_heap_start;
+static uint32_t ddr_heap_size;
+
 void *_sbrk(int incr) {
     uint32_t __stack_pointer;
     __asm__ volatile (
@@ -14,12 +18,26 @@ void *_sbrk(int incr) {
         : "=r"(__stack_pointer)
     );
 
-    uint8_t* prev = heap_ptr;
-    if (heap_ptr + incr > (uint8_t*)__stack_pointer) {
-        errno = ENOMEM;
-        return (void *)-1;
+    uint8_t* prev;
+    if (incr > 0){ // allocazione di memoria
+        uint8_t ddrHeapSize = ddr_heap_ptr + incr - __ddr_heap_start;
+        if (heap_ptr + incr < (uint8_t*)__stack_pointer) {
+            prev = heap_ptr;
+            heap_ptr += incr;
+        }else if(ddr_heap_ptr != NULL && ddrHeapSize < ddr_heap_size){
+            prev = ddr_heap_ptr;
+            ddr_heap_ptr += incr;
+        }else{
+            errno = ENOMEM;
+            return (void *)-1;
+        }
+    }else{        // deallocazione di memoria
+        if(ddr_heap_ptr > __ddr_heap_start){
+            prev = ddr_heap_ptr;
+            ddr_heap_ptr += incr;
+        }
+
     }
-    heap_ptr += incr;
     return (void *)prev;
 }
 
