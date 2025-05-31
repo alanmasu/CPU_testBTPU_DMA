@@ -5,6 +5,8 @@
 
 #include <UART.h>
 
+volatile ControlRegister_t* controlRegister = (volatile ControlRegister_t*)CREG_BASE_ADDR;
+
 extern void main(int argc, char const *argv[]);
 
 __attribute__((naked, section(".init")))

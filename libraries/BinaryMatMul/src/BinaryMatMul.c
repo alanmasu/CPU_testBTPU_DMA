@@ -281,10 +281,21 @@ void storeFramentsToBinaryMatrix(const BinaryFragment_t src[], BinaryMatrix_t ma
     }
 }
 
-void btpuSetBlocks(BTPURegFile_t* inst, const int m, const int n, const int k){
-    inst->mSize = m / BINARY_FRAG_SIZE;
-    inst->nSize = n / BINARY_FRAG_SIZE;
-    inst->kSize = k / BINARY_FRAG_SIZE;
+void btpuSetBlocks(BTPURegFile_t* inst, const uint32_t m, const uint32_t n, const uint32_t k){
+    // inst->mSize = m;
+    // inst->nSize = n;
+    // inst->kSize = k;
+    __asm__(
+        "sw a1, 16(a0)\n\t"
+        "sw a2, 20(a0)\n\t"
+        "sw a3, 24(a0)\n\t"
+    );
+    // printf("[DEBUG] btpuSetBlocks called whit: M = %d, N = %d, K = %d\n", m, n, k);
+    // printf("[DEBUG] inst:\n");
+    // printf("     mSize: %d\n", inst->mSize);
+    // printf("     nSize: %d\n", inst->nSize);
+    // printf("     kSize: %d\n", inst->kSize);
+    
 }
 
 void btpuSetAddrs(BTPURegFile_t* inst, const uint32_t wMemStartAddr, const uint32_t iMemStartAddr, const uint32_t oMemStartAddr){
@@ -296,6 +307,9 @@ void btpuSetAddrs(BTPURegFile_t* inst, const uint32_t wMemStartAddr, const uint3
 bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool isBatched, bool clearAcc, uint8_t outputMemorySelect){
     if(inst->creg.reg.BUSY || inst->creg.reg.ERROR){
         return false; // BTPU is busy
+    }
+    if(!isBatched){
+        inst->nSize = 1;
     }
     inst->creg.reg.BATCHED_MUL = isBatched; // Set the batched mode
     inst->creg.reg.OMEM_SEL = outputMemorySelect; // Set the output memory select
@@ -311,4 +325,14 @@ bool btpuWaitBinaryMatrixMul(BTPURegFile_t* inst){
     while(inst->creg.reg.BUSY){
         // Wait for the BTPU to finish
     }
+    return !inst->creg.reg.ERROR; 
+}
+
+bool btpuWaitBinaryMatrixMulWithCb(BTPURegFile_t* inst, BTPUCallBackFunct_t funct){
+    while(inst->creg.reg.BUSY){
+        if(funct != NULL){
+            funct(); // Call the callback function if provided
+        }
+    }
+    return !inst->creg.reg.ERROR;
 }

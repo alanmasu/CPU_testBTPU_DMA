@@ -75,7 +75,6 @@ if [ "$SIMULATION" -eq 1 ]; then
     executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
     executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
     executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/testBTPUProgram.svh" testBTPU
-    riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
 fi
 
 # Se -f non è stato specificato, esporta main.elf come testLibProgram.h altrimenti esporta il file specificato
@@ -94,4 +93,6 @@ fi
 if [ $TESTING -eq 1 ]; then
     executePython build/bin/test/test_BTPU ~/workspace/Test_GPIO/src/programs/test_BTPU.h test_BTPU
     executePython build/bin/test/test_MatMul ~/workspace/Test_GPIO/src/programs/test_MatMul.h test_MatMul
+    riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_MatMul > scratch/output/testMatMul_disas.txt
 fi

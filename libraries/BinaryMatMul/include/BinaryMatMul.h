@@ -39,7 +39,7 @@
 
 #define BTPU_MAX_BLOCK_COUNT 1024  ///< Maximum number of blocks for matrix multiplication
 
-typedef struct __attribute__((packed)) BTPUCRegField_t {
+typedef struct BTPUCRegField_t {
     unsigned START : 1;          ///< Bit 0: Start bit
     unsigned BUSY : 1;           ///< Bit 1: Busy bit
     unsigned OMEM_SEL : 1;       ///< Bit 2: Output memory selection (0: IO0_MEMORY, 1: IO1_MEMORY)
@@ -50,12 +50,12 @@ typedef struct __attribute__((packed)) BTPUCRegField_t {
     unsigned reserved : 25;      ///< Bit 7-31: Reserved bits
 }BTPUCRegField_t;
 
-typedef union {
+typedef union BTPUCReg_t{
     volatile uint32_t value;        ///< Raw value of the control register
     volatile BTPUCRegField_t reg;   ///< Bit fields of the control register
 }BTPUCReg_t;
 
-typedef struct __attribute__((packed)) BTPURegFile_t {
+typedef struct BTPURegFile_t {
     volatile BTPUCReg_t creg;           ///< Control register
     volatile uint32_t   wMemStartAddr;  ///< Start address of the W memory
     volatile uint32_t   iMemStartAddr;  ///< Start address of the I memory
@@ -74,6 +74,8 @@ typedef uint32_t* BinaryMatrix_t;
 typedef uint32_t* Matrix_t;
 
 typedef uint32_t  BinaryAcc_t[BINARY_FRAG_SIZE][BINARY_FRAG_SIZE];
+
+typedef void(*BTPUCallBackFunct_t)(void);
 
 extern BinaryFragment_t*   BTPU0_W_MEMORY;
 extern BinaryFragment_t* BTPU0_IO0_MEMORY;
@@ -295,7 +297,7 @@ void storeFramentsToBinaryMatrix(const BinaryFragment_t src[], BinaryMatrix_t ma
     @param n Numero di colonne della matrice A e righe della matrice B (in blocchi)
     @param k Numero di colonne della matrice B (in blocchi)
 */
-void btpuSetBlocks(BTPURegFile_t* inst, const int m, const int n, const int k);
+void btpuSetBlocks(BTPURegFile_t* inst, const uint32_t m, const uint32_t n, const uint32_t k);
 
 /*!
     @brief  Inizializza i registri della BTPU per la moltiplicazione di matrici binarie settando gli indirizzi dei registri
@@ -320,5 +322,12 @@ bool btpuStartBinaryMatrixMul(BTPURegFile_t* inst, const uint32_t signCmp, bool 
     @return Quando la moltiplicazione è completata, la funzione termina restituendo true se non ci sono stati errori, false altrimenti.
 */
 bool btpuWaitBinaryMatrixMul(BTPURegFile_t* inst);
+
+/*!
+    @brief  Attende il completamento della moltiplicazione di matrici binarie nel BTPU con callback
+    @details Durante l'attesa, la funzione esegue la funzione di callback specificata.
+    @return true se l'operazione è stata completata correttamente, false altrimenti
+*/
+bool btpuWaitBinaryMatrixMulWithCb(BTPURegFile_t* inst, BTPUCallBackFunct_t funct);
 
 #endif // __BINARY_MATMUL_H__
