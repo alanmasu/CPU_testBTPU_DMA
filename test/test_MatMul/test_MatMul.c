@@ -20,6 +20,7 @@ void setBusy(){
 }
 
 void printCreg(BTPURegFile_t* inst){
+#ifndef SIMULATION
     printf("\n/////////////////////////////////////////\n");
     printf("BTPU CREG:\n");
     printf("     start: %d\n", inst->creg.reg.START);
@@ -36,6 +37,7 @@ void printCreg(BTPURegFile_t* inst){
     printf("M: %d, N: %d, K: %d\n", inst->mSize, inst->nSize, inst->kSize);
     printf("BTPU signCmp: %d\n", inst->signCmp);
     printf("\n/////////////////////////////////////////\n");
+#endif
 }
 
 int main(int argc, char const *argv[]){
@@ -97,12 +99,12 @@ int main(int argc, char const *argv[]){
     // if(!A || !W || !O0 || !O1 || !result0 || !result1){
     if(!A || !W ) {
         PRINTF_DBG("Memory allocation failed!\n");
-        printf("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
-        printf("argv = %p\n", argv);
+        PRINTF_DBG("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
+        PRINTF_DBG("argv = %p\n", argv);
         while(1);
     }else{
         PRINTF_DBG("Memory allocation successful!\n");
-        printf("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
+        PRINTF_DBG("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
     }
 
 

@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]){
     //Configure first Binary Matrix Mul 
     btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
     // btpuSetBlocks(BTPU0RegFile, 1, 1, 1);
-    BTPU0RegFile->nSize = 1;
+    // BTPU0RegFile->nSize = 1;
     btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_0_CONFIG);
 
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
@@ -43,7 +43,7 @@ int main(int argc, char const *argv[]){
     // btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
     BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT;
-
+#ifndef SIMULATION
     printf("BTPU CREG:\n");
     printf("     start: %d\n", BTPU0RegFile->creg.reg.START);
     printf("     busy: %d\n", BTPU0RegFile->creg.reg.BUSY);
@@ -57,7 +57,7 @@ int main(int argc, char const *argv[]){
     printf("BTPU I Addr: %d\n", BTPU0RegFile->iMemStartAddr);
     printf("BTPU O Addr: %d\n", BTPU0RegFile->oMemStartAddr);
     printf("BTPU signCmp: %d\n", BTPU0RegFile->signCmp);
-
+#endif
 
     int i = 0;
     // Trap CPU
