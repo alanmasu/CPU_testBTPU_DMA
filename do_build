@@ -118,4 +118,6 @@ if [ $TESTING -eq 1 ]; then
     riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
     riscv32-unknown-elf-objdump -D build/bin/test/test_MatMul > scratch/output/testMatMul_disas.txt
     riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+    # Dumping symbols sections
+    riscv32-unknown-elf-objdump -t build/bin/test/test_SerialCode | sort > scratch/output/test_SerialCode_symbols.txt
 fi
