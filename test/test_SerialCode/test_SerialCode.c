@@ -51,17 +51,20 @@ void test_BlockMatMul(int testN){
     fillAccWithZero(acc);
     fastBinaryBlockMatrixMul(BTPU0_IO0_MEMORY[0], BTPU0_W_MEMORY[0], acc, BTPU0_IO1_MEMORY[0], 30, true);
 
+    binarizeMatrix(BTPU0_IO1_MEMORY[0], BTPU0_IO1_MEMORY[2], 30, M, K);
+
     // Calcola il risultato con la BTPU
-    btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, 2);
     btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_0_CONFIG);
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
     int res = 1;
     int count = 0;
-    // Verifica il risultato
+    int inTestN = 1;
+    // Verifica il risultato fast con la BTPU
     for (int i = 0; i < M * (K / 32); ++i){
-        if (BTPU0_IO1_MEMORY[0][i] != BTPU0_IO1_MEMORY[1][i]){
-            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> BTPU0_IO1_MEMORY[0][%d] = %08X, expected %08X\n", testN, i, i, BTPU0_IO1_MEMORY[0][i], BTPU0_IO1_MEMORY[1][i]);
+        if (BTPU0_IO1_MEMORY[0][i] != BTPU0_IO1_MEMORY[2][i]){
+            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> BTPU0_IO1_MEMORY[0][%d] = %08X, expected %08X\n", testN, inTestN, i, BTPU0_IO1_MEMORY[0][i], BTPU0_IO1_MEMORY[1][i]);
             res = 0;
             count++; 
         }
@@ -69,7 +72,22 @@ void test_BlockMatMul(int testN){
     if(!res){
         PRINTF_DBG("    %d more like this...\n", count);
     }else{
-        PRINTF_DBG("Test #%d: OK\n", testN);
+        PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
+    }
+
+    inTestN = 2;
+    // Verifica il risultato con la BTPU
+    for (int i = 0; i < M * (K / 32); ++i){
+        if (BTPU0_IO1_MEMORY[1][i] != BTPU0_IO1_MEMORY[2][i]){
+            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> BTPU0_IO1_MEMORY[1][%d] = %08X, expected %08X\n", testN, inTestN, i, BTPU0_IO1_MEMORY[1][i], BTPU0_IO1_MEMORY[2][i]);
+            res = 0;
+            count++; 
+        }
+    }
+    if(!res){
+        PRINTF_DBG("    %d more like this...\n", count);
+    }else{
+        PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
     }
 }
 
