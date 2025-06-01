@@ -10,7 +10,7 @@ LINKER  = linker_script.ld
 
 # Compilatore e flag
 # CFLAGS = -Iinclude $(addprefix -I, $(wildcard libraries/*/include)) -ffreestanding -nostdlib -Os 
-CFLAGS = -Iinclude $(addprefix -I, $(wildcard libraries/*/include)) -ffreestanding -Os --specs=nano.specs -ffunction-sections -Wl,--gc-sections -DMY_RISCV 
+CFLAGS = -Iinclude $(addprefix -I, $(wildcard libraries/*/include)) -ffreestanding -Os --specs=nano.specs -ffunction-sections -fdata-sections -Wl,--gc-sections -DMY_RISCV 
 LDFLAGS = -T $(LINKER) -e main 
 # LDFLAGS = -e main
 
