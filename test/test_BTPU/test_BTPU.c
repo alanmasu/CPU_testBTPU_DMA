@@ -19,28 +19,19 @@ void initMatrices(){
 }
 
 int main(int argc, char const *argv[]){
-
-    GPIO0Dir->PORT_A_DIR.GPIO0 = OUTPUT; // GPIO0_PIN0 (LED0)
-    GPIO0Dir->PORT_A_DIR.GPIO1 = OUTPUT; // GPIO0_PIN1 (LED1)
-    GPIO0Dir->PORT_A_DIR.GPIO2 = OUTPUT; // GPIO0_PIN2 (LED2)
-    GPIO0Dir->PORT_A_DIR.GPIO3 = OUTPUT; // GPIO0_PIN3 (LED3)
-
     // Initialize Matrices
     initMatrices();
 
     //Configure first Binary Matrix Mul 
     btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
-    // btpuSetBlocks(BTPU0RegFile, 1, 1, 1);
-    // BTPU0RegFile->nSize = 1;
     btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_0_CONFIG);
-
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
     // //Configure second Binary Matrix Mul
-    // btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
-    // btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_1_CONFIG);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, 1);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, 30, false, true, BTPU_USE_MEMORY_1_CONFIG);
 
-    // btpuWaitBinaryMatrixMul(BTPU0RegFile);
+    btpuWaitBinaryMatrixMul(BTPU0RegFile);
 
     BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT;
 #ifndef SIMULATION
@@ -59,23 +50,6 @@ int main(int argc, char const *argv[]){
     printf("BTPU signCmp: %d\n", BTPU0RegFile->signCmp);
 #endif
 
-    int i = 0;
     // Trap CPU
-    while(1){
-        // // Read GPIO0_PIN0 and GPIO0_PIN1 to select data to show on OLED
-        // GPIO0Data->PORT_A_DATA.GPIO0 = controlRegister->IO.sw0; // GPIO0_PIN0
-        // GPIO0Data->PORT_A_DATA.GPIO1 = controlRegister->IO.sw1; // GPIO0_PIN1
-
-        // OLED0Data->data[0] = *((uint8_t*)GPIO0Port) & 0xFF;
-        // OLED0Data->data[1] = controlRegister->IO.sw0 | (controlRegister->IO.sw1 << 1);
-
-        
-        // if (i == DELAY_COUNT / 2) {
-        //     i = 0;
-        //     GPIO0Data->PORT_A_DATA.GPIO3 = !GPIO0Port->PORT_A.GPIO3; // Toggle GPIO0_PIN6 (LED)
-        //     printf("GPIO0 PORT A: %02x\n", GPIO0Port->PORT_A);
-        // } 
-        // i = i + 1;
-       
-    }
+    while(1);
 }
