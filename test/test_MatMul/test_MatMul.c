@@ -41,7 +41,6 @@ void printCreg(BTPURegFile_t* inst){
 }
 
 int main(int argc, char const *argv[]){
-    PRINTF_DBG("Starting Binary Matrix Multiplication Test... (Test compiled at: %s %s)\n", __DATE__, __TIME__);
     
     // Initialize GPIOs
     GPIO0Dir->PORT_A_DIR.GPIO0 = OUTPUT; // GPIO0_PIN0 (LED0)
@@ -103,12 +102,11 @@ int main(int argc, char const *argv[]){
         PRINTF_DBG("argv = %p\n", argv);
         while(1);
     }else{
-        PRINTF_DBG("Memory allocation successful!\n");
-        PRINTF_DBG("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
+        // PRINTF_DBG("Memory allocation successful!\n");
+        // PRINTF_DBG("A = %p, W = %p, O0 = %p, O1 = %p, result0 = %p, result1 = %p\n", A, W, O0, O1, result0, result1);
     }
 
 
-    PRINTF_DBG("\nInitializing matrices...\n");
     for(int i = 0; i < M * (N / 32); ++i){
         A[i] = i + 1;
     }
@@ -116,80 +114,39 @@ int main(int argc, char const *argv[]){
         W[i] = i;
     }
 
-    // memset(O, 0, M * (K / 32) * sizeof(uint32_t));
-    // memset(result, 0, M * K * sizeof(uint32_t));
 
-
-    // test_n = 1;
-    // binaryMatrixMul(A, W, (BinaryMatrix_t)result, M, N, K);
-    // binarizeMatrix(result, O, signCmp, M, K);
-
-    // bool success = true;
-    // int err = 0;
-    // for(int i = 0; i < M * (K / 32); ++i){
-    //     if(O[i] != result_Matrix[i]){
-    //         if(success) PRINTF_DBG("Test #1-%d: FAILED -> O[%d] was 0x%08x, Expected = 0x%08x\n", i, i, O[i], result_Matrix[i]);
-    //         success = false;
-    //         ++err;
-    //     }
-    // }
-    // if(success){
-    //     PRINTF_DBG("Test #1: OK\n");
-    // }else{
-    //     PRINTF_DBG("   %d more errors found\n", err);
-    //     PRINTF_DBG("Test #1: FAILED\n");
-    // }
-
-    // test_n = 2;
-    // fastBinaryMatrixMul(A, W, O, signCmp, M, N, K);
-    // success = true;
-    // err = 0;
-    // for(int i = 0; i < M * (K / 32); ++i){
-    //     if(O[i] != result_Matrix[i]){
-    //         if(success) PRINTF_DBG("Test #2-%d: FAILED -> O[%d] was 0x%08x, Expected = 0x%08x\n", i, i, O[i], result_Matrix[i]);
-    //         success = false;
-    //         ++err;
-    //     }
-    // }
-    // if(success){
-    //     PRINTF_DBG("Test #2: OK\n");
-    // }else{  
-    //     PRINTF_DBG("   %d more errors found\n", err);
-    //     PRINTF_DBG("Test #2: FAILED\n");
-    // }
-
-    test_n = 3;
-    PRINTF_DBG("\nLoading BTPU fragments...\n");
+    test_n = 1;
+    // PRINTF_DBG("\nLoading BTPU fragments...\n");
     loadBinaryMatrixToFragments(A, BTPU0_IO0_MEMORY, M, N);
     loadBinaryMatrixToFragments(W, BTPU0_W_MEMORY, N, K);
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_M * B_N);
-    PRINTF_DBG("\nStarting first multiplication...\n");
+    // PRINTF_DBG("\nStarting first multiplication...\n");
     btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
-    printCreg(BTPU0RegFile);
+    // printCreg(BTPU0RegFile);
 
-    PRINTF_DBG("Waiting for BTPU to finish...\n");
+    // PRINTF_DBG("Waiting for BTPU to finish...\n");
     btpuWaitBinaryMatrixMulWithCb(BTPU0RegFile, setBusy);
-    PRINTF_DBG("Storing results from BTPU...\n");
+    // PRINTF_DBG("Storing results from BTPU...\n");
     storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O0, M, K);
-    PRINTF_DBG("BTPU finished!\n");
+    // PRINTF_DBG("BTPU finished!\n");
 
-    PRINTF_DBG("Loading new data to A...\n");
+    // PRINTF_DBG("Loading new data to A...\n");
     //Loading new data to A
     for(int i = 0; i < M * (N / 32); ++i){
         A[i] = i + 2;
     }
     loadBinaryMatrixToFragments(A, BTPU0_IO1_MEMORY, M, N);
-    PRINTF_DBG("\nStarting second multiplication...\n");
+    // PRINTF_DBG("\nStarting second multiplication...\n");
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_M * B_N);
     btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_1_CONFIG);
-    printCreg(BTPU0RegFile);
+    // printCreg(BTPU0RegFile);
 
-    PRINTF_DBG("Waiting for BTPU to finish...\n");
+    // PRINTF_DBG("Waiting for BTPU to finish...\n");
     btpuWaitBinaryMatrixMulWithCb(BTPU0RegFile, setBusy);
-    PRINTF_DBG("Storing results from BTPU...\n");
+    // PRINTF_DBG("Storing results from BTPU...\n");
     storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY, O1, M, K);
-    PRINTF_DBG("BTPU finished!\n");
+    // PRINTF_DBG("BTPU finished!\n");
 
     BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT;
 

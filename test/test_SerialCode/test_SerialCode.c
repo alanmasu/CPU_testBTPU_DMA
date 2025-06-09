@@ -151,7 +151,6 @@ bool test_binaryMul(int testN){
 }
 
 void test_MatrixMul(int testN){
-    PRINTF_DBG("Testing Matrix Multiplication with BTPU...\n");
     BinaryMatrix_t aSerial = (BinaryMatrix_t)(IO0_MEMORY_BASE) + 32 * IO0MemoryBlocksUsed;
     IO0MemoryBlocksUsed += B_M * B_N;
     BinaryMatrix_t wSerial = (BinaryMatrix_t)(W_MEMORY_BASE)   + 32 * WMemoryBlocksUsed;
@@ -161,17 +160,10 @@ void test_MatrixMul(int testN){
     BinaryMatrix_t oBTPU = (BinaryMatrix_t)(IO1_MEMORY_BASE) + 32 * IO1MemoryBlocksUsed;
     IO1MemoryBlocksUsed += B_M * B_K;
 
-    PRINTF_DBG("aSerial: %p, wSerial: %p, oSerial: %p, oBTPU: %p\n", aSerial, wSerial, oSerial, oBTPU);
-    PRINTF_DBG("IO0 Blocks %d, W Blocks Used: %d, IO1 Blocks Used: %d\n", 
-               IO0MemoryBlocksUsed, WMemoryBlocksUsed, IO1MemoryBlocksUsed);
-
     //Allocazione della memoria per la computazione con BTPU
     IO0MemoryBlocksUsed += B_M * B_N;
     WMemoryBlocksUsed   += B_N * B_K;
     IO1MemoryBlocksUsed += B_M * B_K;
-
-    PRINTF_DBG("Allocated memory for computation: IO0 %d, W %d, IO1 %d\n", 
-               IO0MemoryBlocksUsed, WMemoryBlocksUsed, IO1MemoryBlocksUsed);
 
     // Controlla l'allocazione della memoria
     if (IO0MemoryBlocksUsed >= BTPU_MAX_BLOCK_COUNT || 
@@ -193,29 +185,21 @@ void test_MatrixMul(int testN){
         oSerial[i] = 0;
     }
 
-    PRINTF_DBG("Matrices initialized...\n");
 
     fastBinaryMatrixMul(aSerial, wSerial, oSerial, SIGN_CMP, M, N, K);
 
-    PRINTF_DBG("Fast Matrix Multiplication completed...\n");
-
     // Calcola il risultato con la BTPU
-
+    // Carica le matrici A e W nella memoria della BTPU
     loadBinaryMatrixToFragments(aSerial, BTPU0_IO0_MEMORY + IO0MemoryBlocksUsed - B_M * B_N, M, N);
     loadBinaryMatrixToFragments(wSerial, BTPU0_W_MEMORY + WMemoryBlocksUsed - B_N * B_K, N, K);
-    PRINTF_DBG("Loaded matrices to BTPU fragments...\n");
-
     // Configura la BTPU per la moltiplicazione di matrici
     btpuSetAddrs(BTPU0RegFile, WMemoryBlocksUsed - B_N * B_K, IO0MemoryBlocksUsed - B_M * B_N, IO1MemoryBlocksUsed - B_M * B_K);
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuStartBinaryMatrixMul(BTPU0RegFile, SIGN_CMP, true, true, BTPU_USE_MEMORY_0_CONFIG);
-    PRINTF_DBG("Started Matrix Multiplication in BTPU...\n");
-
+    // Attende il completamento della moltiplicazione
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    PRINTF_DBG("Waiting for BTPU Matrix Multiplication to complete...\n");
-
+    // Memorizza il risultato della BTPU nella matrice di output
     storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY + IO1MemoryBlocksUsed - B_M * B_K, oBTPU, M, K);
-    PRINTF_DBG("Stored results from BTPU...\n");
 
     int res = 1;
     int count = 0;
@@ -232,7 +216,6 @@ void test_MatrixMul(int testN){
     }else{
         PRINTF_DBG("Test #%d: OK\n", testN);
     }
-    PRINTF_DBG("Testing Matrix Multiplication with BTPU completed\n");
 }
 
 
@@ -248,11 +231,11 @@ int main(int argc, char const *argv[]){
     test_binaryMul(testN);    
 
     #ifndef SIMULATION
-    testN = 4;
-    test_BlockMatMul(testN);
+        testN = 4;
+        test_BlockMatMul(testN);
 
-    testN = 5;
-    test_MatrixMul(testN);
+        testN = 5;
+        test_MatrixMul(testN);
     #endif
 
     while(1);
