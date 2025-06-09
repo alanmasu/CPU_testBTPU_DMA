@@ -16,12 +16,6 @@ SECTIONS
 		__text_end = .;		
 	} > INSTR 
 
-	.entry : {
-		__entry_start = .;
-		. = . + 8;
-		. = ALIGN(4);
-	} > RAM
-
 	.const : {
 		__const_start = .;
 		*(.rodata*)
@@ -29,6 +23,12 @@ SECTIONS
 		*(.const*)
 		. = ALIGN(4);
 		__const_end = .;
+	} > INSTR
+
+	.entry : {
+		__entry_start = .;
+		. = . + 8;
+		. = ALIGN(4);
 	} > RAM
 
 	.data : {
