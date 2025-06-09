@@ -135,6 +135,21 @@ uint32_t binaryMul(const uint32_t a, const uint32_t b);
 void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc);
 
 /*!
+    @brief  Moltiplica due frammenti di matrice binaria applicando il segno
+    @details Prende in ingresso due frammenti di matrice binaria di dimensioni BINARY_FRAG_SIZE x BINARY_FRAG_SIZE
+             e restituisce il risultato della moltiplicazione in un accumulatore, ne calola il segno confrontando il
+             risultato con un valore di confronto specificato.
+    @param[in]  a Il frammento A
+    @param[in]  b Il frammento B (trasposto)
+    @param[out] acc L'accumulatore in cui memorizzare il risultato
+    @param[out] c Il frammento in cui memorizzare il risultato finale
+    @param      signCmp Il valore di confronto per il segno
+    @param      store Se true, binarizza il risultato e lo memorizza in c
+    
+*/
+void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store);
+
+/*!
     @brief  Carica un blocco di matrice binaria in un frammento
     @details Prende in ingresso una matrice binaria, allocata in RAM, e carica un frammento allocato in RAM
              con i dati del blocco specificato.

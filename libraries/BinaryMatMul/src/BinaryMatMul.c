@@ -77,20 +77,7 @@ void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, Bi
     }
 }
 
-/*!
-    @brief  Moltiplica due frammenti di matrice binaria applicando il segno
-    @details Prende in ingresso due frammenti di matrice binaria di dimensioni BINARY_FRAG_SIZE x BINARY_FRAG_SIZE
-             e restituisce il risultato della moltiplicazione in un accumulatore, ne calola il segno confrontando il
-             risultato con un valore di confronto specificato.
-    @param[in]  a Il frammento A
-    @param[in]  b Il frammento B (trasposto)
-    @param[out] acc L'accumulatore in cui memorizzare il risultato
-    @param[out] c Il frammento in cui memorizzare il risultato finale
-    @param      signCmp Il valore di confronto per il segno
-    @param      store Se true, binarizza il risultato e lo memorizza in c
-    
-*/
-static void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store) {
+void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store) {
     for (int row = 0; row < BINARY_FRAG_SIZE; ++row) {
         for (int col = 0; col < BINARY_FRAG_SIZE; ++col) {
             acc[row][col] += binaryMul(a[row], b[col]);

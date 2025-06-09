@@ -12,6 +12,7 @@ OPTIND=1
 TESTING=0
 TEST_FILE=""
 FILE=""
+SIMULATION_PREV=${SIMULATION:-0}
 SIMULATION=0
 
 ## If -c option is provided, clean the build
@@ -38,8 +39,33 @@ while getopts "ctsf:" opt; do
     esac
 done
 
+# Exporting BTPU test programs files to CPU Testbench folder
+if [ "$SIMULATION" -eq 1 ]; then  
+    if [ "$SIMULATION_PREV" -eq 0 ]; then
+        echo "Cleaning previous build..."
+        make cleanall
+    fi
+    make sim
+    executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
+    executePython build/bin/test/test_MatMul build/bin/testMatMul.h testMatMul
 
-make
+    executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
+    executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/testBTPUProgram.svh" testBTPU
+
+    # executePython --format sv build/bin/test/test_MatMul build/bin/testMatMul.svh testMatMul
+    # executePython --format sv build/bin/test/test_MatMul "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_MatMulProgram.svh" testMatMul
+
+    executePython --format sv build/bin/test/test_SerialCode build/bin/test_SerialCodeProgram.svh test_SerialCode
+    executePython --format sv build/bin/test/test_SerialCode "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh" test_SerialCode
+    executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode --format sv -a -o "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh"
+    riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+else
+    if [ "$SIMULATION_PREV" -eq 1 ]; then
+        echo "Cleaning previous simulation build..."
+        make cleanall
+    fi
+    make
+fi
 make dump > scratch/output/dump.txt
 make symbols > scratch/output/symbols.txt
 make sections > scratch/output/sections.txt
@@ -70,13 +96,6 @@ riscv32-unknown-elf-objdump -t build/obj/src/main.o | sort >> scratch/output/nm_
 executePython build/bin/main.elf build/bin/testLib.h testLib
 executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
 
-# Exporting BTPU test programs files to CPU Testbench folder
-if [ "$SIMULATION" -eq 1 ]; then  
-    executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
-    executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
-    executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/testBTPUProgram.svh" testBTPU
-fi
-
 # Se -f non è stato specificato, esporta main.elf come testLibProgram.h altrimenti esporta il file specificato
 if [ -z "$FILE" ]; then
     executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
@@ -93,6 +112,12 @@ fi
 if [ $TESTING -eq 1 ]; then
     executePython build/bin/test/test_BTPU ~/workspace/Test_GPIO/src/programs/test_BTPU.h test_BTPU
     executePython build/bin/test/test_MatMul ~/workspace/Test_GPIO/src/programs/test_MatMul.h test_MatMul
+    executePython build/bin/test/test_SerialCode ~/workspace/Test_GPIO/src/programs/test_SerialCode.h test_SerialCode
+    executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode -a -o ~/workspace/Test_GPIO/src/programs/test_SerialCode.h
+
     riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
     riscv32-unknown-elf-objdump -D build/bin/test/test_MatMul > scratch/output/testMatMul_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+    # Dumping symbols sections
+    riscv32-unknown-elf-objdump -t build/bin/test/test_SerialCode | sort > scratch/output/test_SerialCode_symbols.txt
 fi
