@@ -65,7 +65,3 @@ Accetta le seguenti opzioni:
  - `-s` Esporta alcuni eseguibili nelle directory di simulazione
  - `-t` Compila i test esportandoli in header per la compilazione assieme agli ARM
  - `-f <file>` Esporta l'eseguibile `<file>` in un header nel progetto del loader, nel file `testLibProgram.h`
-
-
-## TO DO
- - [ ] Testare il RISC-V perchè non esegue correttamente l'implementazione seriale (testata con compilatore locale)
