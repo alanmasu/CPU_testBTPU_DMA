@@ -1,233 +1,148 @@
+#include <main.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <main.h>
-#include <utilities.h>
+
+#include <BinaryMatMul.h>
 #include <UART.h>
+#include <OLED.h>
 #include <GPIO.h>
-#include <I2C.h>
+#include <utilities.h>
 
-static char prova = 20;
-char intGlobalNI;
+// #define SIMULATION
 
-#define PB200_221_ADDR 0x4B
+#ifndef SIMULATION
+    #define PRINTF_DBG(...) printf(__VA_ARGS__)
+#else 
+    #define PRINTF_DBG(...)
+#endif
 
-typedef union DisplayData_t{
-    uint8_t data[4];
-    uint32_t value;
-} DisplayData_t;
 
-DisplayData_t* DisplayData = (DisplayData_t*)DISPLAY_BASE_ADDR;
-
-void testI2CRead(){
-    uint8_t lenReaded = 0;
-    lenReaded = I2C0RegFile->lenOut;
-            
-    DisplayData->value = I2C0RegFile->rData;
-    DisplayData->data[3] = lenReaded;
-}
-
-void printI2CState( I2CStatus_t i2cState, const char* message){
-    switch (i2cState){
-        case I2C_OK:
-            UARTPrint("I2C OK ");
-            break;
-        case I2C_NOT_FOUND:
-            UARTPrint("I2C Not Found ");
-            break;
-        case I2C_BUSY:
-            UARTPrint("I2C Busy ");
-            break;
-        case I2C_READY:
-            UARTPrint("I2C Ready ");
-            break;
-        case I2C_ERROR: 
-            UARTPrint("I2C Error ");
-            break;
-        case I2C_FULL:
-            UARTPrint("I2C Full ");
-            break;
-        default:
-            UARTPrint("I2C Unknown ");
-            break;
-    }
-    UARTPrint(message);
-    UARTPrint("\n");
-}
 
 int main(int argc, char const *argv[]){
-    UARTWrite(&prova, sizeof(int));
-    UARTWrite(&intGlobalNI, sizeof(int));
+    printf("Starting code compiled at %s %s\n", __DATE__, __TIME__);
+    const int B_M = 2;
+    const int B_N = 3;
+    const int B_K = 4;
+    const uint32_t signCmp = 48;
 
-    I2CStatus_t i2cState;
-    I2CStatus_t i2cState_testC;
-    I2CStatus_t i2cState_testG;
+    const int M = B_M * BINARY_FRAG_SIZE;
+    const int N = B_N * BINARY_FRAG_SIZE;
+    const int K = B_K * BINARY_FRAG_SIZE;
 
-    uint8_t* ptr = (uint8_t*)&i2cState;
-    UARTWrite((char*)&i2cState, 4);
+    GPIO0Dir->PORT_A_DIR.GPIO0 = 1;
+    GPIO0Dir->PORT_A_DIR.GPIO1 = 1;
+ 
+    // BinaryMatrix_t A = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
+    // BinaryMatrix_t W = (BinaryMatrix_t)malloc(N * (K / 32) * sizeof(uint32_t)); // 1.536 kB
+    // BinaryMatrix_t O = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    // BinaryMatrix_t OSerial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    uint32_t A [M * (N / 32)];        // 768 byte
+    uint32_t W [N * (K / 32)];        // 1.536 kB
+    uint32_t O [M * (K / 32)];        // 1 kB
+    uint32_t OSerial [M * (K / 32)];  // 1 kB
 
-    // printf("Hello World!\n%d\n", 1234);
-
-    GPIO0Dir->PORT_A_DIR.GPIO0 = OUTPUT;
-    GPIO0Data->PORT_A_DATA.GPIO0 = 0;
-
-    GPIO0Dir->PORT_A_DIR.GPIO1 = OUTPUT;
-    GPIO0Data->PORT_A_DATA.GPIO1 = 0;
-
-    GPIO0Dir->PORT_A_DIR.GPIO2 = OUTPUT;
-    GPIO0Data->PORT_A_DATA.GPIO2 = 0;
-
-    GPIO0Dir->PORT_A_DIR.GPIO3 = OUTPUT;
-    GPIO0Data->PORT_A_DATA.GPIO3 = 0;
-
-    uint8_t* buff = (uint8_t*)&(GPIO0Data->PORT_A_DATA);
-
-    UARTPrint("\nStarting the program...[FROM RISC-V]\nPlease SET the second switch to 1 (SWITCH[1]).\n\n");
-
-    wait(0);
-
-    //TEST 0a & 0b: Testing Invalid address
-    uint32_t test = 0x2034;
-    i2cState = i2cSetupWrite(0x20,(uint8_t*) &test, 2);
-    printI2CState(i2cState, "@0a");
-    if(i2cState == I2C_READY){
-        UARTPrint("\tSending 0x2034\n");
-        i2cStartTransaction();
+    if(!A || !W || !O || !OSerial){
+        PRINTF_DBG("Memory allocation failed!\n");
+        while(1);
     }
 
-    i2cState = i2cWaitTransaction();
-    printI2CState(i2cState, "@0b");
-    wait(0);
-    wait(0);
+    PRINTF_DBG("Memory allocation successful!\n");
 
-    //TEST 0c & 0d: Testing Valid address but reading out of the registers range (the first is valid, 2nd, 3rd and 4th are invalid)
-    test = 0x2FFF44;
-    i2cState = i2cSetupWrite(PB200_221_ADDR, (uint8_t*) &test, 3);
-    i2cState_testC = i2cStartTransaction();
-
-    i2cSetupRead(PB200_221_ADDR, 4);
-    i2cStartTransaction();
-    i2cState = i2cWaitTransaction();
-    printI2CState(i2cState_testC, "@0c");
-    printI2CState(i2cState, "@0d");
-
-    //TEST 0e & 0f: Testing Valid address and writing out of the registers range (the first is valid, 2nd, 3rd and 4th are invalid)
-    test = 0x2FFF55;
-    i2cState = i2cSetupWrite(PB200_221_ADDR, (uint8_t*) &test, 3);
-    if(i2cState == I2C_READY) *buff = 0x06;
-    // printI2CState(i2cState, "@0e");
-    i2cStartTransaction();
-    i2cState_testG = i2cWaitTransaction();
-    
-
-    test = 0xF3F2F1F0;
-    i2cSetupWrite(PB200_221_ADDR, (uint8_t*) &test, 4);
-    i2cStartTransaction();
-    i2cState = i2cWaitTransaction();
-    printI2CState(i2cState_testG, "@0f");
-    printI2CState(i2cState, "@0g");
-
-
-    //Setting UP the resolution
-    wait(0);
-    uint8_t data[4];
-    *data = 0x03;
-    i2cState = i2cSetupWrite(PB200_221_ADDR, data, 1);
-    if(i2cState == I2C_READY){
-        UARTPrint("I2C Ready, sending 0x03\n");
-        i2cState = i2cStartTransaction();
-    }else if(i2cState == I2C_BUSY){
-        UARTPrint("I2C Busy @1\n");
-    }else if(i2cState == I2C_ERROR){
-        UARTPrint("I2C Error @1\n");
-    }else if(i2cState == I2C_FULL){
-        UARTPrint("I2C Full @1\n");
+    PRINTF_DBG("\nInitializing matrices...\n");
+    for(int i = 0; i < M * (N / 32); ++i){
+        A[i] = i + 1;
     }
-    i2cWaitTransaction();
-
-    *buff = 0x01;
-
-    wait(0);
-    // wait(0);
-
-    *data = 0x80;
-    i2cState = i2cSetupWrite(PB200_221_ADDR, data, 1);
-    if(i2cState == I2C_READY){
-        UARTPrint("I2C Ready, sending 0x80\n");
-        i2cState = i2cStartTransaction();
-    }else if(i2cState == I2C_BUSY){
-        UARTPrint("I2C Busy @2\n");
-    }else if(i2cState == I2C_ERROR){
-        UARTPrint("I2C Error @2\n");
-    }else if(i2cState == I2C_FULL){
-        UARTPrint("I2C Full @2\n");
+    for(int i = 0; i < N * (K / 32); ++i){
+        W[i] = i;
     }
-    i2cWaitTransaction();
+    memset(O, 0, M * (K / 32) * sizeof(uint32_t));
 
-    *buff = 0x02;
+    PRINTF_DBG("\nMatrice A:\n");
+    printIntBMatrixN(A, 2, 2, M, N);
 
-    wait(0);
-    // wait(0);
+    PRINTF_DBG("\nMatrice W:\n");
+    printIntBMatrixN(W, 2, 2, N, K);
 
-    //STARTING THE CONVERSION
-    while(1){
-        *data = 0x00;
-        i2cState = i2cSetupWrite(PB200_221_ADDR, data, 1);
-        if(i2cState == I2C_READY){
-            UARTPrint("I2C Ready, sending 0x00\n");
-            i2cState = i2cStartTransaction();
-        }else if(i2cState == I2C_BUSY){
-            UARTPrint("I2C Busy @3\n");
-        }else if(i2cState == I2C_ERROR){
-            UARTPrint("I2C Error @3\n");
-        }else if(i2cState == I2C_FULL){
-            UARTPrint("I2C Full @3\n");
+    PRINTF_DBG("\nMatrice O (inizializzata a zero):\n");
+    printIntBMatrixN(O, 2, 2, M, K);
+
+
+    PRINTF_DBG("\nLoading matices to BTPU fragments...\n");
+    loadBinaryMatrixToFragments(A, BTPU0_IO0_MEMORY, M, N);
+    loadBinaryMatrixToFragments(W, BTPU0_W_MEMORY, N, K);
+
+    btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K); 
+
+    PRINTF_DBG("\nStarting first multiplication...\n");
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
+    btpuWaitBinaryMatrixMul(BTPU0RegFile);
+    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY + (B_N * B_K), O, M, K);
+    fastBinaryMatrixMul(A, W, OSerial, signCmp, M, N, K);
+
+    bool success = true;
+    int err = 0;
+    for(int i = 0; i < M * (K / 32); ++i){
+        if(O[i] != OSerial[i]){
+            if(success) PRINTF_DBG("Mismatch in O at index %d: BTPU = 0x%08x, Serial = 0x%08x\n", i, O[i], OSerial[i]);
+            success = false;
+            ++err;
         }
-
-        i2cWaitTransaction();
-
-        *buff = 0x03;
-
-        wait(0);
-
-
-        i2cState = i2cSetupRead(PB200_221_ADDR, 2);
-        if(i2cState == I2C_READY){
-            UARTPrint("I2C Ready, reading 2 bytes\n");
-            i2cState = i2cStartTransaction();
-        }else if(i2cState == I2C_BUSY){
-            UARTPrint("I2C Busy @4\n");
-        }else if(i2cState == I2C_ERROR){
-            UARTPrint("I2C Error @4\n");
-        }else if(i2cState == I2C_FULL){
-            UARTPrint("I2C Full @4\n");
-        }
-        i2cWaitTransaction();
-
-        *buff = 0x04;
-
-        wait(0);
-        // wait(0);
-
-        ///// OLD CODE /////
-        uint8_t lenReaded = 0;
-        i2cState = i2cGetReaded(data, &lenReaded);
-        *((uint32_t*)data) = *((uint32_t*)data)/ 128;
-        
-        DisplayData->value = *((uint32_t*)data);
-        DisplayData->data[3] = lenReaded;
-        ///// END OLD CODE /////
-
-        printf("Temperatura letta: %d C\n", *((uint32_t*)data));
-        
-        wait(0);
-        // wait(0);
-
-        *buff = 0x05;
-
-        wait(0);
-        // wait(0);
     }
+    if(success){
+        PRINTF_DBG("Test #1: OK\n");
+    }else{
+        PRINTF_DBG("   %d more errors found\n", err);
+        PRINTF_DBG("Test #1: FAILED\n");
+    }
+
+    for(int i = 0; i < M * (N / 32); ++i){
+        A[i] = i + 1;
+    }
+
+    PRINTF_DBG("\nLoading matices to BTPU fragments...\n");
+    loadBinaryMatrixToFragments(A, BTPU0_IO1_MEMORY, M, N);
+
+    PRINTF_DBG("\nStarting second multiplication...\n");
+    btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_1_CONFIG);
+    btpuWaitBinaryMatrixMul(BTPU0RegFile);
+    storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY + (B_N * B_K), O, M, K);
+    fastBinaryMatrixMul(A, W, OSerial, signCmp, M, N, K);
+
+    err = 0;
+    success = true;
+    for(int i = 0; i < M * (K / 32); ++i){
+        if(O[i] != OSerial[i]){
+            if(success) PRINTF_DBG("Mismatch in O at index %d: BTPU = 0x%08x, Serial = 0x%08x\n", i, O[i], OSerial[i]);
+            success = false;
+            ++err;
+        }
+    }
+    if(success){
+        PRINTF_DBG("Test #2: OK\n");
+    }else{
+        PRINTF_DBG("   %d more errors found\n", err);
+        PRINTF_DBG("Test #2: FAILED\n");
+    }
+
+    PRINTF_DBG("All tests completed!\n");
+    PRINTF_DBG("Freeing allocated memory...\n");
+    free(A);
+    // free(A2);
+    free(W);
+    free(O);
+    // free(O2);
+    free(OSerial);
+    // free(O2Serial);
+
+    PRINTF_DBG("Setting BRAM Port to EXTERNAL...\n");
+    BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT; // Set BRAM port to external
+
+    PRINTF_DBG("Trap CPU...\n");
+    while(1);
 
     return 0;
 }

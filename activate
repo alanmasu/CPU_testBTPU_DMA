@@ -7,6 +7,9 @@ export CPU_PYTHON_DIR
 export CPU_PYTHON_ENV
 export CPU_PYTHON_V_ENV
 
+CPU_ENV_ACTIVATE=1
+export CPU_ENV_ACTIVATE
+
 alias executePython="source \"${CPU_PYTHON_DIR}/executePython\""
 
 # Creazione e attivazione dell'ambiente virtuale

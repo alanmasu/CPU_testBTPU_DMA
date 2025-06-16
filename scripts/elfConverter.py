@@ -63,7 +63,7 @@ def extract_text_section_to_c(file_path, output_path, programName):
             # Aggiunge le #define per indirizzi e dimensioni
             c_content += f"#define {programName}_TEXT_ADDR 0x{text_address:08x}\n"
             c_content += f"#define {programName}_TEXT_SIZE {text_size}\n"
-            if const_address is not None:
+            if const_address is not None and const_size > 0:
                 c_content += f"#define {programName}_CONST_ADDR 0x{const_address:08x}\n"
                 c_content += f"#define {programName}_CONST_SIZE {const_size}\n"
             else:
@@ -75,7 +75,7 @@ def extract_text_section_to_c(file_path, output_path, programName):
             else:
                 c_content += "// .bss section non trovata\n"
                 
-            if data_address is not None:
+            if data_address is not None and data_size > 0:
                 c_content += f"#define {programName}_DATA_ADDR 0x{data_address:08x}\n"
                 c_content += f"#define {programName}_DATA_SIZE {data_size}\n"
             else:
@@ -125,6 +125,7 @@ def extract_text_section_to_sv(file_path, output_path, programName):
             text_data, text_address, text_size = extract_section_data(elf, '.text')
             const_data, const_address, const_size = extract_section_data(elf, '.const')
             data_data, data_address, data_size = extract_section_data(elf, '.data')
+            bss_data, bss_address, bss_size = extract_section_data(elf, '.bss')
 
             def format_section_sv(name, data):
                 if not data:
@@ -140,12 +141,15 @@ def extract_text_section_to_sv(file_path, output_path, programName):
             sv_content = f"`define {programName}_TEXT_ADDR 32'h{text_address:08x}\n"
             sv_content += f"`define {programName}_TEXT_SIZE {text_size}\n"
 
-            if const_address is not None:
+            if const_address is not None and const_size > 0:
                 sv_content += f"`define {programName}_CONST_ADDR 32'h{const_address:08x}\n"
                 sv_content += f"`define {programName}_CONST_SIZE {const_size}\n"
-            if data_address is not None:
+            if data_address is not None and data_size > 0:
                 sv_content += f"`define {programName}_DATA_ADDR 32'h{data_address:08x}\n"
                 sv_content += f"`define {programName}_DATA_SIZE {data_size}\n"
+            if bss_address is not None and bss_size > 0:
+                sv_content += f"`define {programName}_BSS_ADDR 32'h{bss_address:08x}\n"
+                sv_content += f"`define {programName}_BSS_SIZE {bss_size}\n"
 
             global_pointer_val = get_symbol_address(elf, '__global_pointer$')
             if global_pointer_val is not None:

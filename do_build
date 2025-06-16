@@ -1,13 +1,84 @@
-if [ "$1" == "-c" ]; then
-    echo "Cleaning build..."
-    make clean
-    rm -rf scratch/output
-    mkdir -p scratch/output
+# Controlla se la variabile d'ambiente CPU_ENV_ACTIVATE è impostata
+if [ -z "$CPU_ENV_ACTIVATE" ]; then
+    echo "Activating CPU environment..."
+    source "$PWD/activate"
 fi
-make
+
+
+# Resetta l'OPTIND per evitare conflitti con altri script
+OPTIND=1
+
+# Resetta le variabili
+TESTING=0
+TEST_FILE=""
+FILE=""
+SIMULATION_PREV=${SIMULATION:-0}
+SIMULATION=0
+
+## If -c option is provided, clean the build
+## If -t option is provided, build the test and export them to the test Project (~/workspace/Test_GPIO/src/programs)
+## If -f option is provided, the 'file' is exported to the loader progam in the workspace as 'testLibProgram'
+
+while getopts "ctsf:" opt; do
+    case $opt in
+        c)
+            make clean
+            ;;
+        t)
+            TESTING=1
+            ;;
+        s) 
+            SIMULATION=1
+            ;;
+        f) 
+            FILE=$OPTARG
+            ;;
+        \?)
+            echo "Opzione non riconosciuta: -$OPTARG"
+            ;;
+    esac
+done
+
+# Exporting BTPU test programs files to CPU Testbench folder
+if [ "$SIMULATION" -eq 1 ]; then  
+    if [ "$SIMULATION_PREV" -eq 0 ]; then
+        echo "Cleaning previous build..."
+        make cleanall
+    fi
+    make sim
+    executePython build/bin/test/test_BTPU build/bin/testBTPU.h testBTPU
+    executePython build/bin/test/test_MatMul build/bin/testMatMul.h testMatMul
+
+    executePython --format sv build/bin/test/test_BTPU build/bin/testBTPU.svh testBTPU
+    executePython --format sv build/bin/test/test_BTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/testBTPUProgram.svh" testBTPU
+
+    # executePython --format sv build/bin/test/test_MatMul build/bin/testMatMul.svh testMatMul
+    # executePython --format sv build/bin/test/test_MatMul "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_MatMulProgram.svh" testMatMul
+
+    executePython --format sv build/bin/test/test_SerialCode build/bin/test_SerialCodeProgram.svh test_SerialCode
+    executePython --format sv build/bin/test/test_SerialCode "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh" test_SerialCode
+    executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode --format sv -a -o "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh"
+    riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+
+    executePython --format sv build/bin/test/test_LoadStoreBTPU build/bin/test_LoadStoreBTPU.svh test_LoadStoreBTPU
+    riscv32-unknown-elf-objdump -D build/bin/test/test_LoadStoreBTPU > scratch/output/test_LoadStoreBTPU_disas.txt
+
+    executePython --format sv build/bin/test/test_LoadStoreBTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_LoadStoreBTPUProgram.svh" test_LoadStoreBTPU
+    executePython -s scripts/getSymbols.py build/bin/test/test_LoadStoreBTPU --format sv -a -o "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_LoadStoreBTPUProgram.svh"
+else
+    if [ "$SIMULATION_PREV" -eq 1 ]; then
+        echo "Cleaning previous simulation build..."
+        make cleanall
+    fi
+    make
+fi
 make dump > scratch/output/dump.txt
 make symbols > scratch/output/symbols.txt
 make sections > scratch/output/sections.txt
+
+if [ "$TESTING" -eq 1 ]; then
+    make test
+fi
 
 mkdir -p scratch/output
 
@@ -27,9 +98,35 @@ echo "" >> scratch/output/nm_main.txt
 echo "Dumping symbols section (with objdump)..." >> scratch/output/nm_main.txt
 riscv32-unknown-elf-objdump -t build/obj/src/main.o | sort >> scratch/output/nm_main.txt
 
-# Creating programs files
+# Exporting programs files local to project
 executePython build/bin/main.elf build/bin/testLib.h testLib
-# executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
-# executePython --format coe build/bin/main.elf build/bin/instruction.coe build/bin/RAM.coe
+executePython --format sv build/bin/main.elf build/bin/testLib.svh testLib
 
-executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
+# Se -f non è stato specificato, esporta main.elf come testLibProgram.h altrimenti esporta il file specificato
+if [ -z "$FILE" ]; then
+    executePython build/bin/main.elf ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
+else
+    # Controlla se il file esiste
+    if [ ! -f "$FILE" ]; then
+        echo "Eseguibile $FILE non trovato."
+    else
+        executePython $FILE ~/workspace/TestCPU/src/programs/testLibProgram.h LibProgram
+    fi
+fi
+
+# Se i test sono abilitati, esporta i test
+if [ $TESTING -eq 1 ]; then
+    executePython build/bin/test/test_BTPU ~/workspace/Test_GPIO/src/programs/test_BTPU.h test_BTPU
+    executePython build/bin/test/test_MatMul ~/workspace/Test_GPIO/src/programs/test_MatMul.h test_MatMul
+    executePython build/bin/test/test_SerialCode ~/workspace/Test_GPIO/src/programs/test_SerialCode.h test_SerialCode
+    executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode -a -o ~/workspace/Test_GPIO/src/programs/test_SerialCode.h
+    executePython build/bin/test/test_LoadStoreBTPU ~/workspace/Test_GPIO/src/programs/test_LoadStoreBTPU.h test_LoadStoreBTPU
+    executePython -s scripts/getSymbols.py build/bin/test/test_LoadStoreBTPU -a -o ~/workspace/Test_GPIO/src/programs/test_LoadStoreBTPU.h
+
+    riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_MatMul > scratch/output/testMatMul_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_LoadStoreBTPU > scratch/output/test_LoadStoreBTPU_disas.txt
+    # Dumping symbols sections
+    riscv32-unknown-elf-objdump -t build/bin/test/test_SerialCode | sort > scratch/output/test_SerialCode_symbols.txt
+fi
