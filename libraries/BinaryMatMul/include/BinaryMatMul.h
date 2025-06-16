@@ -145,7 +145,6 @@ void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, Bi
     @param[out] c Il frammento in cui memorizzare il risultato finale
     @param      signCmp Il valore di confronto per il segno
     @param      store Se true, binarizza il risultato e lo memorizza in c
-    
 */
 void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store);
 
