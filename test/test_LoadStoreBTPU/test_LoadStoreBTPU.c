@@ -20,17 +20,13 @@ uint32_t value;
  // Disable optimization for this function
 __attribute__((optimize("O0")))
 int main(int argc, char const *argv[]){
-    PRINTF_DBG("Starting code compiled at %s %s\n", __DATE__, __TIME__);
-    PRINTF_DBG("Writing to BTPU_W_MEMORY[0][0]...\n");
     *(BTPU0_W_MEMORY_prt) = 0x12345678; // Write a value to the first word of BTPU_W_MEMORY
-    PRINTF_DBG("Reading from BTPU_W_MEMORY[0][0]...\n");
     // value = BTPU0_W_MEMORY[0][0]; // Read the value back
     value = *(BTPU0_W_MEMORY_prt); // Read the value back
-    PRINTF_DBG("Value written: %08x\n", value);
     if (value != 0x12345678) {
-        PRINTF_DBG("Error: Value read from BTPU_W_MEMORY[0][0] does not match value written.\n");
+        PRINTF_DBG("Test #1: FAILED -> value was 0x%08x, expected 0x12345678\n", value);
     } else {
-        PRINTF_DBG("Success: Value read from BTPU_W_MEMORY[0][0] matches value written.\n");
+        PRINTF_DBG("Test #1: OK\n");
     }
     
     PRINTF_DBG("Setting BRAM Port to EXTERNAL...\n");
