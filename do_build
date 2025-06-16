@@ -59,6 +59,12 @@ if [ "$SIMULATION" -eq 1 ]; then
     executePython --format sv build/bin/test/test_SerialCode "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh" test_SerialCode
     executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode --format sv -a -o "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_SerialCodeProgram.svh"
     riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+
+    executePython --format sv build/bin/test/test_LoadStoreBTPU build/bin/test_LoadStoreBTPU.svh test_LoadStoreBTPU
+    riscv32-unknown-elf-objdump -D build/bin/test/test_LoadStoreBTPU > scratch/output/test_LoadStoreBTPU_disas.txt
+
+    executePython --format sv build/bin/test/test_LoadStoreBTPU "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_LoadStoreBTPUProgram.svh" test_LoadStoreBTPU
+    executePython -s scripts/getSymbols.py build/bin/test/test_LoadStoreBTPU --format sv -a -o "/home/alan.masutti/Documents/CPU Repo/testbench/BNN/test_LoadStoreBTPUProgram.svh"
 else
     if [ "$SIMULATION_PREV" -eq 1 ]; then
         echo "Cleaning previous simulation build..."
@@ -114,10 +120,13 @@ if [ $TESTING -eq 1 ]; then
     executePython build/bin/test/test_MatMul ~/workspace/Test_GPIO/src/programs/test_MatMul.h test_MatMul
     executePython build/bin/test/test_SerialCode ~/workspace/Test_GPIO/src/programs/test_SerialCode.h test_SerialCode
     executePython -s scripts/getSymbols.py build/bin/test/test_SerialCode -a -o ~/workspace/Test_GPIO/src/programs/test_SerialCode.h
+    executePython build/bin/test/test_LoadStoreBTPU ~/workspace/Test_GPIO/src/programs/test_LoadStoreBTPU.h test_LoadStoreBTPU
+    executePython -s scripts/getSymbols.py build/bin/test/test_LoadStoreBTPU -a -o ~/workspace/Test_GPIO/src/programs/test_LoadStoreBTPU.h
 
     riscv32-unknown-elf-objdump -D build/bin/test/test_BTPU > scratch/output/testBTPU_disas.txt
     riscv32-unknown-elf-objdump -D build/bin/test/test_MatMul > scratch/output/testMatMul_disas.txt
     riscv32-unknown-elf-objdump -D build/bin/test/test_SerialCode > scratch/output/test_SerialCode_disas.txt
+    riscv32-unknown-elf-objdump -D build/bin/test/test_LoadStoreBTPU > scratch/output/test_LoadStoreBTPU_disas.txt
     # Dumping symbols sections
     riscv32-unknown-elf-objdump -t build/bin/test/test_SerialCode | sort > scratch/output/test_SerialCode_symbols.txt
 fi

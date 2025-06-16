@@ -18,10 +18,10 @@
 
 #define BINARY_FRAG_SIZE 32
 
-#define  BTPU_CREG_BASE 0x40020030
-#define   W_MEMORY_BASE 0x40080000
-#define IO0_MEMORY_BASE 0x400A0000
-#define IO1_MEMORY_BASE 0x400C0000
+#define       BTPU_CREG_BASE 0x40020030
+#define   BTPU_W_MEMORY_BASE 0x40080000
+#define BTPU_IO0_MEMORY_BASE 0x400A0000
+#define BTPU_IO1_MEMORY_BASE 0x400C0000
 
 #define BTPU_START_BIT_MASK          (1 << 0)
 #define BTPU_BYSY_BIT_MASK           (1 << 1)
@@ -145,7 +145,6 @@ void binaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, Bi
     @param[out] c Il frammento in cui memorizzare il risultato finale
     @param      signCmp Il valore di confronto per il segno
     @param      store Se true, binarizza il risultato e lo memorizza in c
-    
 */
 void fastBinaryBlockMatrixMul(const BinaryFragment_t a, const BinaryFragment_t b, BinaryAcc_t acc, BinaryFragment_t c, uint32_t signCmp, bool store);
 

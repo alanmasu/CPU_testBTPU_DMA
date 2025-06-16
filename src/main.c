@@ -5,6 +5,9 @@
 
 #include <BinaryMatMul.h>
 #include <UART.h>
+#include <OLED.h>
+#include <GPIO.h>
+#include <utilities.h>
 
 // #define SIMULATION
 
@@ -17,6 +20,7 @@
 
 
 int main(int argc, char const *argv[]){
+    printf("Starting code compiled at %s %s\n", __DATE__, __TIME__);
     const int B_M = 2;
     const int B_N = 3;
     const int B_K = 4;
@@ -25,17 +29,18 @@ int main(int argc, char const *argv[]){
     const int M = B_M * BINARY_FRAG_SIZE;
     const int N = B_N * BINARY_FRAG_SIZE;
     const int K = B_K * BINARY_FRAG_SIZE;
+
+    GPIO0Dir->PORT_A_DIR.GPIO0 = 1;
+    GPIO0Dir->PORT_A_DIR.GPIO1 = 1;
  
-    BinaryMatrix_t A = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
-    // BinaryMatrix_t A2 = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
-
-    BinaryMatrix_t W = (BinaryMatrix_t)malloc(N * (K / 32) * sizeof(uint32_t)); // 1.536 kB
-
-    BinaryMatrix_t O = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
-    // BinaryMatrix_t O2 = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
-
-    BinaryMatrix_t OSerial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
-    // BinaryMatrix_t O2Serial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    // BinaryMatrix_t A = (BinaryMatrix_t)malloc(M * (N / 32) * sizeof(uint32_t)); //768 byte
+    // BinaryMatrix_t W = (BinaryMatrix_t)malloc(N * (K / 32) * sizeof(uint32_t)); // 1.536 kB
+    // BinaryMatrix_t O = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    // BinaryMatrix_t OSerial = (BinaryMatrix_t)malloc(M * (K / 32) * sizeof(uint32_t)); // 1 kB
+    uint32_t A [M * (N / 32)];        // 768 byte
+    uint32_t W [N * (K / 32)];        // 1.536 kB
+    uint32_t O [M * (K / 32)];        // 1 kB
+    uint32_t OSerial [M * (K / 32)];  // 1 kB
 
     if(!A || !W || !O || !OSerial){
         PRINTF_DBG("Memory allocation failed!\n");
@@ -53,6 +58,16 @@ int main(int argc, char const *argv[]){
     }
     memset(O, 0, M * (K / 32) * sizeof(uint32_t));
 
+    PRINTF_DBG("\nMatrice A:\n");
+    printIntBMatrixN(A, 2, 2, M, N);
+
+    PRINTF_DBG("\nMatrice W:\n");
+    printIntBMatrixN(W, 2, 2, N, K);
+
+    PRINTF_DBG("\nMatrice O (inizializzata a zero):\n");
+    printIntBMatrixN(O, 2, 2, M, K);
+
+
     PRINTF_DBG("\nLoading matices to BTPU fragments...\n");
     loadBinaryMatrixToFragments(A, BTPU0_IO0_MEMORY, M, N);
     loadBinaryMatrixToFragments(W, BTPU0_W_MEMORY, N, K);
@@ -63,9 +78,8 @@ int main(int argc, char const *argv[]){
     PRINTF_DBG("\nStarting first multiplication...\n");
     btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY, O, M, K);
-
-    fastBinaryMatrixMul(A, W, OSerial, M, N, K, signCmp);
+    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY + (B_N * B_K), O, M, K);
+    fastBinaryMatrixMul(A, W, OSerial, signCmp, M, N, K);
 
     bool success = true;
     int err = 0;
@@ -87,13 +101,16 @@ int main(int argc, char const *argv[]){
         A[i] = i + 1;
     }
 
+    PRINTF_DBG("\nLoading matices to BTPU fragments...\n");
+    loadBinaryMatrixToFragments(A, BTPU0_IO1_MEMORY, M, N);
+
     PRINTF_DBG("\nStarting second multiplication...\n");
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuSetAddrs(BTPU0RegFile, 0, 0, B_N * B_K);
-    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_0_CONFIG);
+    btpuStartBinaryMatrixMul(BTPU0RegFile, signCmp, true, true, BTPU_USE_MEMORY_1_CONFIG);
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, O, M, K);
-    fastBinaryMatrixMul(A, W, OSerial, M, N, K, signCmp);
+    storeFramentsToBinaryMatrix(BTPU0_IO0_MEMORY + (B_N * B_K), O, M, K);
+    fastBinaryMatrixMul(A, W, OSerial, signCmp, M, N, K);
 
     err = 0;
     success = true;
@@ -120,7 +137,7 @@ int main(int argc, char const *argv[]){
     // free(O2);
     free(OSerial);
     // free(O2Serial);
-    
+
     PRINTF_DBG("Setting BRAM Port to EXTERNAL...\n");
     BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT; // Set BRAM port to external
 

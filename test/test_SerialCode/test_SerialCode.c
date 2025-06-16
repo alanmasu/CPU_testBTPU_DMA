@@ -27,7 +27,7 @@ const int A_SIZE =  (M * (N / 32) * 4);
 const int W_SIZE = (N * (K / 32) * 4);
 const int O_BIN_SIZE = (M * (K / 32) * 4);
 const int O_SIZE = (M * K * 4);
-const int TOTAL_SIZE = A_SIZE + W_SIZE + O_BIN_SIZE;
+const int TOTAL_SIZE = A_SIZE + W_SIZE + 2 * O_BIN_SIZE;
 
 int WMemoryBlocksUsed = 0;
 int IO0MemoryBlocksUsed = 0;
@@ -43,11 +43,15 @@ void test_BlockMatMul(int testN){
     IO0MemoryBlocksUsed += 1;
     IO1MemoryBlocksUsed += 3;
 
+    BinaryFragment_t fastSerial;
+    BinaryFragment_t serial;
+    BinaryFragment_t transposed;
+
     // Controlla l'allocazione della memoria
     if (IO0MemoryBlocksUsed > BTPU_MAX_BLOCK_COUNT || 
         WMemoryBlocksUsed > BTPU_MAX_BLOCK_COUNT || 
         IO1MemoryBlocksUsed > BTPU_MAX_BLOCK_COUNT) {
-        PRINTF_DBG("Memory allocation error: too many blocks used.\n");
+        PRINTF_DBG("[ERROR]: Memory allocation error: too many blocks used.\n");
         return;
     }
 
@@ -66,9 +70,12 @@ void test_BlockMatMul(int testN){
     }
 
     fillAccWithZero(acc);
-    fastBinaryBlockMatrixMul(BTPU0_IO0_MEMORY[0], BTPU0_W_MEMORY[0], acc, BTPU0_IO1_MEMORY[0], 30, true);
-
-    binarizeMatrix(BTPU0_IO1_MEMORY[0], BTPU0_IO1_MEMORY[2], 30, M, K);
+    transposeBinaryFragment(BTPU0_W_MEMORY[0], transposed);
+    fastBinaryBlockMatrixMul(BTPU0_IO0_MEMORY[0], transposed, acc, fastSerial, 30, true);
+    
+    fillAccWithZero(acc);
+    binaryBlockMatrixMul(BTPU0_IO0_MEMORY[0], transposed, acc);
+    binarizeMatrix((Matrix_t)acc, (BinaryMatrix_t)serial, 30, BINARY_FRAG_SIZE, BINARY_FRAG_SIZE);
 
     // Calcola il risultato con la BTPU
     btpuSetAddrs(BTPU0RegFile, WMemoryBlocksUsed - 1, IO0MemoryBlocksUsed - 1, IO1MemoryBlocksUsed - 1);
@@ -80,8 +87,8 @@ void test_BlockMatMul(int testN){
     int inTestN = 1;
     // Verifica il risultato fast con la BTPU
     for (int i = 0; i < BINARY_FRAG_SIZE; ++i){
-        if (BTPU0_IO1_MEMORY[0][i] != BTPU0_IO1_MEMORY[2][i]){
-            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> BTPU0_IO1_MEMORY[0][%d] = %08X, expected %08X\n", testN, inTestN, i, BTPU0_IO1_MEMORY[0][i], BTPU0_IO1_MEMORY[1][i]);
+        if (fastSerial[i] != BTPU0_IO1_MEMORY[2][i]){
+            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> fastSerial[%d] (fast serial) = 0x%08x, expected 0x%08x (BTPU)\n", testN, inTestN, i, fastSerial[i], BTPU0_IO1_MEMORY[2][i]);
             res = 0;
             count++; 
         }
@@ -93,10 +100,12 @@ void test_BlockMatMul(int testN){
     }
 
     inTestN = 2;
+    res = 1;
+    count = 0;
     // Verifica il risultato con la BTPU
     for (int i = 0; i < BINARY_FRAG_SIZE; ++i){
-        if (BTPU0_IO1_MEMORY[1][i] != BTPU0_IO1_MEMORY[2][i]){
-            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> BTPU0_IO1_MEMORY[1][%d] = %08X, expected %08X\n", testN, inTestN, i, BTPU0_IO1_MEMORY[1][i], BTPU0_IO1_MEMORY[2][i]);
+        if (serial[i] != BTPU0_IO1_MEMORY[2][i]){
+            if(res) PRINTF_DBG("Test #%d-%d: FAILED -> serial[%d] = 0x%08x, expected 0x%08x\n", testN, inTestN, i, serial[i], BTPU0_IO1_MEMORY[2][i]);
             res = 0;
             count++; 
         }
@@ -104,6 +113,30 @@ void test_BlockMatMul(int testN){
     if(!res){
         PRINTF_DBG("    %d more like this...\n", count);
     }else{
+        PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
+    }
+
+    uint32_t xnorResult = xnor32(BTPU0_IO0_MEMORY[0][0], BTPU0_W_MEMORY[0][0]);
+    uint32_t popcountResult = popcount32(xnorResult);
+
+    inTestN = 3;
+    if( xnorResult != 0xFFFFFFFE) {
+        PRINTF_DBG("Test #%d-%d: FAILED -> xnor32(0x%08x, 0x%08x) = 0x%08x, expected 0x%08x\n", testN, inTestN, BTPU0_IO0_MEMORY[0][0], BTPU0_W_MEMORY[0][0], xnorResult, 0xFFFFFFFE);
+    } else {
+        PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
+    }
+
+    inTestN = 4;
+    if( popcountResult != 31) {
+        PRINTF_DBG("Test #%d-%d: FAILED -> popcount32(0x%08x) = %d, expected %d\n", testN, inTestN, xnorResult, popcountResult, 31);
+    } else {
+        PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
+    }
+
+    inTestN = 5;
+    if(acc[0][0] != 31) {
+        PRINTF_DBG("Test #%d-%d: FAILED -> acc[0][0] = %d, expected %d\n", testN, inTestN, acc[0][0], 31);
+    } else {
         PRINTF_DBG("Test #%d-%d: OK\n", testN, inTestN);
     }
 }
@@ -150,35 +183,15 @@ bool test_binaryMul(int testN){
     }
 }
 
-void test_MatrixMul(int testN){
-    PRINTF_DBG("Testing Matrix Multiplication with BTPU...\n");
-    BinaryMatrix_t aSerial = (BinaryMatrix_t)(IO0_MEMORY_BASE) + 32 * IO0MemoryBlocksUsed;
-    IO0MemoryBlocksUsed += B_M * B_N;
-    BinaryMatrix_t wSerial = (BinaryMatrix_t)(W_MEMORY_BASE)   + 32 * WMemoryBlocksUsed;
-    WMemoryBlocksUsed   += B_N * B_K;
-    BinaryMatrix_t oSerial = (BinaryMatrix_t)(IO1_MEMORY_BASE) + 32 * IO1MemoryBlocksUsed;
-    IO1MemoryBlocksUsed += B_M * B_K;
-    BinaryMatrix_t oBTPU = (BinaryMatrix_t)(IO1_MEMORY_BASE) + 32 * IO1MemoryBlocksUsed;
-    IO1MemoryBlocksUsed += B_M * B_K;
+void test_MatrixMul(int testN, uint32_t argc, uint8_t* argv) {
+    BinaryMatrix_t aSerial = (BinaryMatrix_t)malloc(A_SIZE);
+    BinaryMatrix_t wSerial = (BinaryMatrix_t)malloc(W_SIZE);
+    BinaryMatrix_t oSerial = (BinaryMatrix_t)malloc(O_BIN_SIZE);
+    BinaryMatrix_t oBTPU   = (BinaryMatrix_t)malloc(O_BIN_SIZE);
 
-    PRINTF_DBG("aSerial: %p, wSerial: %p, oSerial: %p, oBTPU: %p\n", aSerial, wSerial, oSerial, oBTPU);
-    PRINTF_DBG("IO0 Blocks %d, W Blocks Used: %d, IO1 Blocks Used: %d\n", 
-               IO0MemoryBlocksUsed, WMemoryBlocksUsed, IO1MemoryBlocksUsed);
-
-    //Allocazione della memoria per la computazione con BTPU
-    IO0MemoryBlocksUsed += B_M * B_N;
-    WMemoryBlocksUsed   += B_N * B_K;
-    IO1MemoryBlocksUsed += B_M * B_K;
-
-    PRINTF_DBG("Allocated memory for computation: IO0 %d, W %d, IO1 %d\n", 
-               IO0MemoryBlocksUsed, WMemoryBlocksUsed, IO1MemoryBlocksUsed);
-
-    // Controlla l'allocazione della memoria
-    if (IO0MemoryBlocksUsed >= BTPU_MAX_BLOCK_COUNT || 
-        WMemoryBlocksUsed >= BTPU_MAX_BLOCK_COUNT || 
-        IO1MemoryBlocksUsed >= BTPU_MAX_BLOCK_COUNT) {
-        PRINTF_DBG("Memory allocation error: too many blocks used.\n");
-        // return;
+    if (!aSerial || !wSerial || !oSerial || !oBTPU) {
+        PRINTF_DBG("Memory allocation failed.\n");
+        while (1);
     }
 
     // Inizializza le matrici A e W con valori di test
@@ -191,38 +204,32 @@ void test_MatrixMul(int testN){
     // Inizializza la matrice di output con zeri
     for (int i = 0; i < M * (K / 32); ++i){
         oSerial[i] = 0;
+        oBTPU  [i] = 0;
     }
 
-    PRINTF_DBG("Matrices initialized...\n");
 
     fastBinaryMatrixMul(aSerial, wSerial, oSerial, SIGN_CMP, M, N, K);
 
-    PRINTF_DBG("Fast Matrix Multiplication completed...\n");
-
     // Calcola il risultato con la BTPU
-
-    loadBinaryMatrixToFragments(aSerial, BTPU0_IO0_MEMORY + IO0MemoryBlocksUsed - B_M * B_N, M, N);
-    loadBinaryMatrixToFragments(wSerial, BTPU0_W_MEMORY + WMemoryBlocksUsed - B_N * B_K, N, K);
-    PRINTF_DBG("Loaded matrices to BTPU fragments...\n");
-
+    // Carica le matrici A e W nella memoria della BTPU
+    loadBinaryMatrixToFragments(aSerial, BTPU0_IO0_MEMORY, M, N);
+    loadBinaryMatrixToFragments(wSerial, BTPU0_W_MEMORY, N, K);
     // Configura la BTPU per la moltiplicazione di matrici
-    btpuSetAddrs(BTPU0RegFile, WMemoryBlocksUsed - B_N * B_K, IO0MemoryBlocksUsed - B_M * B_N, IO1MemoryBlocksUsed - B_M * B_K);
+    btpuSetAddrs(BTPU0RegFile, 0, 0, 0);
     btpuSetBlocks(BTPU0RegFile, B_M, B_N, B_K);
     btpuStartBinaryMatrixMul(BTPU0RegFile, SIGN_CMP, true, true, BTPU_USE_MEMORY_0_CONFIG);
-    PRINTF_DBG("Started Matrix Multiplication in BTPU...\n");
-
+    // Attende il completamento della moltiplicazione
     btpuWaitBinaryMatrixMul(BTPU0RegFile);
-    PRINTF_DBG("Waiting for BTPU Matrix Multiplication to complete...\n");
-
-    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY + IO1MemoryBlocksUsed - B_M * B_K, oBTPU, M, K);
-    PRINTF_DBG("Stored results from BTPU...\n");
+    // Memorizza il risultato della BTPU nella matrice di output
+    storeFramentsToBinaryMatrix(BTPU0_IO1_MEMORY, oBTPU, M, K);
 
     int res = 1;
     int count = 0;
     // Verifica il risultato fast con la BTPU
     for (int i = 0; i < M * (K / 32); ++i){
         if (oSerial[i] != oBTPU[i]){
-            if(res) PRINTF_DBG("Test #%d: FAILED -> oSerial[%d] = %08X, expected %08X\n", testN, i, oSerial[i], oBTPU[i]);
+            // if(res) PRINTF_DBG("Test #%d: FAILED -> oSerial[%d] = 0x%08x, expected 0x%08x\n", testN, i, oSerial[i], oBTPU[i]);
+            if(res) PRINTF_DBG("Test #%d: FAILED -> oSerial[%d] = 0x%08x, expected 0x%08x\n", testN, i, oSerial[i], oBTPU[i]);
             res = 0;
             count++; 
         }
@@ -232,7 +239,34 @@ void test_MatrixMul(int testN){
     }else{
         PRINTF_DBG("Test #%d: OK\n", testN);
     }
-    PRINTF_DBG("Testing Matrix Multiplication with BTPU completed\n");
+    
+    testN++;
+    if(oBTPU[4] == BTPU0_IO1_MEMORY[0][1]){
+        PRINTF_DBG("Test #%d: OK\n", testN);
+    } else {
+        PRINTF_DBG("Test #%d: FAILED -> oBTPU[4] = 0x%08x, expected 0x%08x\n", testN, oBTPU[4], BTPU0_IO1_MEMORY[0][1]);
+    }
+
+    testN++;
+    if(oSerial[4] == BTPU0_IO1_MEMORY[0][1]){
+        PRINTF_DBG("Test #%d: OK\n", testN);
+    } else {
+        PRINTF_DBG("Test #%d: FAILED -> oSerial[4] = 0x%08x, expected 0x%08x\n", testN, oSerial[4], BTPU0_IO1_MEMORY[0][1]);
+    }
+
+    // Stampa le matrici per il debug
+    #if !defined(SIMULATION) && defined(DEBUG)
+        PRINTF_DBG("A matrix:\n");
+        printIntBMatrixN(aSerial, 2, 2, M, N);
+        PRINTF_DBG("W matrix:\n");
+        printIntBMatrixN(wSerial, 2, 2, N, K);
+        PRINTF_DBG("O matrix (Serial):\n");
+        printIntBMatrixN(oSerial, 2, 2, M, K);
+        PRINTF_DBG("O matrix (BTPU):\n");
+        printIntBMatrixN(oBTPU, 2, 2, M, K);
+    #endif
+    memcpy(argv, oSerial, O_BIN_SIZE);
+    memcpy(argv + O_BIN_SIZE, oBTPU, O_BIN_SIZE);
 }
 
 
@@ -258,11 +292,13 @@ int main(int argc, char const *argv[]){
     test_binaryMul(testN);    
 
     #ifndef SIMULATION
-    testN = 4;
-    test_BlockMatMul(testN);
+        testN = 4;
+        test_BlockMatMul(testN);
 
-    testN = 5;
-    test_MatrixMul(testN);
+        testN = 5;
+        test_MatrixMul(testN, argc, (uint8_t*)argv);
+
+        BTPU0RegFile->creg.reg.BRAM_PORT_SEL = BTPU_BRAM_PORT_SEL_EXT; // Set BRAM port to external
     #endif
 
     while(1);

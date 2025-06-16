@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 BTPURegFile_t* BTPU0RegFile = (BTPURegFile_t*)BTPU_CREG_BASE;
-BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  W_MEMORY_BASE;
-BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)IO0_MEMORY_BASE;
-BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)IO1_MEMORY_BASE;
+BinaryFragment_t*   BTPU0_W_MEMORY = (BinaryFragment_t*)  BTPU_W_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO0_MEMORY = (BinaryFragment_t*)BTPU_IO0_MEMORY_BASE;
+BinaryFragment_t* BTPU0_IO1_MEMORY = (BinaryFragment_t*)BTPU_IO1_MEMORY_BASE;
 
 uint8_t getBit(const BinaryMatrix_t mat, uint32_t row, uint32_t col, uint32_t N) {
     int bitIndex = row * N + col;
@@ -103,6 +103,7 @@ void loadFragment(BinaryFragment_t frag, const BinaryMatrix_t mat, uint32_t bloc
         frag[i] = mat[wordRow];
         wordRow += cols;
     }
+    // printf("\n");
 }    
 
 void storeFragment(const BinaryFragment_t frag, BinaryMatrix_t mat, uint32_t blockRow, uint32_t blockCol, uint32_t n) {
@@ -198,7 +199,7 @@ void printIntBMatrixN(BinaryMatrix_t mat, uint32_t r, uint32_t c, const uint32_t
 
     for (int i = 0; i < r; ++i){
         for (int j = 0; j < c; ++j){
-            printf("%03d ", *(mat + i * (N/32) + j));
+            printf("%03d ", *(mat + i * cols + j));
         }
         printf("\n");
     }

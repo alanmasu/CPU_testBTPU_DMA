@@ -59,9 +59,16 @@ def main():
         print("Nessun simbolo da scrivere.")
         return
 
-    mode = 'a' if args.append else 'w'
-    with open(args.output, mode) as out_file:
-        out_file.write('\n'.join(lines) + '\n')
+    new_content = '\n'.join(lines) + '\n'
+
+    if args.append and os.path.exists(args.output):
+        with open(args.output, 'r') as f:
+            existing_content = f.read()
+        with open(args.output, 'w') as f:
+            f.write(new_content + existing_content)
+    else:
+        with open(args.output, 'w') as f:
+            f.write(new_content)
 
     print(f"{len(symbols)} simboli scritti in '{args.output}' come formato {args.format.upper()}.")
 
